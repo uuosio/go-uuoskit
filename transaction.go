@@ -14,7 +14,7 @@ type TransactionExtension struct {
 	Data []byte
 }
 
-func (a *TransactionExtension) EstimatePackedSize() int {
+func (a *TransactionExtension) Size() int {
 	return 2 + 5 + len(a.Data)
 }
 
@@ -73,6 +73,7 @@ func (m TxBytes) MarshalJSON() ([]byte, error) {
 }
 
 type PackedTransaction struct {
+	chainId       [32]byte
 	tx            *Transaction
 	Signatures    []string `json:"signatures"`
 	Compression   string   `json:"compression"`
@@ -118,17 +119,17 @@ func (t *Transaction) Pack() []byte {
 
 	initSize += 5 // Max varint size
 	for _, action := range t.ContextFreeActions {
-		initSize += action.EstimatePackedSize()
+		initSize += action.Size()
 	}
 
 	initSize += 5 // Max varint size
 	for _, action := range t.Actions {
-		initSize += action.EstimatePackedSize()
+		initSize += action.Size()
 	}
 
 	initSize += 5 // Max varint size
 	for _, extention := range t.Extention {
-		initSize += extention.EstimatePackedSize()
+		initSize += extention.Size()
 	}
 	enc := NewEncoder(initSize)
 	enc.Pack(t.Expiration)
@@ -262,21 +263,23 @@ func NewPackedtransaction(tx *Transaction) *PackedTransaction {
 	packed := &PackedTransaction{}
 	packed.Compression = "none"
 	packed.PackedTx = tx.Pack()
+	packed.tx = tx
 	return packed
 }
 
-func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId string) error {
-	id, err := hex.DecodeString(chainId)
+//SetChainId
+func (t *PackedTransaction) SetChainId(chainId string) error {
+	id, err := DecodeHash256(chainId)
 	if err != nil {
 		return err
 	}
+	copy(t.chainId[:], id)
+	return nil
+}
 
-	if len(id) != 32 {
-		return errors.New("invalid chainId")
-	}
-
+func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId []byte) error {
 	hash := sha256.New()
-	hash.Write(id)
+	hash.Write(chainId)
 	hash.Write(t.PackedTx)
 	//TODO: hash context_free_data
 	cfdHash := [32]byte{}
@@ -300,13 +303,24 @@ func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId string) err
 	return nil
 }
 
-func (t *PackedTransaction) Sign(pubKey string, chainId string) error {
+func (t *PackedTransaction) Sign(pubKey string) error {
 	priv, err := GetWallet().GetPrivateKey(pubKey)
 	if err != nil {
 		return err
 	}
+	empty := false
+	for i := 0; i < 32; i++ {
+		if t.chainId[i] != 0 {
+			empty = false
+			break
+		}
+	}
 
-	return t.sign(priv, chainId)
+	if empty {
+		return errors.New("chainId is empty")
+	}
+
+	return t.sign(priv, t.chainId[:])
 }
 
 func (t *PackedTransaction) SignByPrivateKey(privKey string, chainId string) error {
@@ -314,7 +328,12 @@ func (t *PackedTransaction) SignByPrivateKey(privKey string, chainId string) err
 	if err != nil {
 		return err
 	}
-	return t.sign(priv, chainId)
+
+	_chainId, err := DecodeHash256(chainId)
+	if err != nil {
+		return err
+	}
+	return t.sign(priv, _chainId)
 }
 
 func (t *PackedTransaction) String() string {

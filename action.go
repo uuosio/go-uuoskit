@@ -61,12 +61,12 @@ func PackArray(a []Serializer) []byte {
 	return buf
 }
 
-func (a *Action) EstimatePackedSize() int {
-	return 8 + 8 + 5 + len(a.Authorization)*8 + 5 + len(a.Data)
+func (a *Action) SetData(data []byte) {
+	a.Data = data
 }
 
 func (a *Action) Pack() []byte {
-	enc := NewEncoder(8 + 8 + 5 + len(a.Authorization)*8 + 5 + len(a.Data))
+	enc := NewEncoder(a.Size())
 	enc.PackName(a.Account)
 	enc.PackName(a.Name)
 	enc.PackLength(len(a.Authorization))
@@ -102,6 +102,10 @@ func (a *Action) Unpack(b []byte) (int, error) {
 	}
 	dec.Unpack(&a.Data)
 	return dec.Pos(), nil
+}
+
+func (a *Action) Size() int {
+	return 8 + 8 + 5 + len(a.Authorization)*8 + 5 + len(a.Data)
 }
 
 func (a *Action) AddPermission(actor Name, permission Name) {

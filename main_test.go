@@ -94,7 +94,13 @@ func TestAbi(t *testing.T) {
 	t.Log("+++++++actionType:", actionStruct)
 
 	args := `{"from": "hello", "to": "alice", "quantity": "1.0000 EOS", "memo": "transfer from alice"}`
-	buf, err := serializer.PackAbiStructByName("hello", "transfer", args)
+	buf, err := serializer.PackActionArgs("hello", "transfer", args)
+	if err != nil {
+		panic(err)
+	}
+	t.Log("+++++++buf:", hex.EncodeToString(buf))
+
+	buf, err = serializer.PackAbiStructByName("hello", "transfer", args)
 	if err != nil {
 		panic(err)
 	}
