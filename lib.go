@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+
+	"github.com/learnforpractice/go-secp256k1/secp256k1"
 )
 
 func renderData(data interface{}) *C.char {
@@ -32,6 +34,7 @@ func renderError(err error) *C.char {
 //export init_
 func init_() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	secp256k1.Init()
 }
 
 //export say_hello_
@@ -53,6 +56,18 @@ func wallet_import_(name *C.char, priv *C.char) *C.char {
 }
 
 var gPackedTxs []*PackedTransaction
+
+func validateIndex(idx C.int64_t) error {
+	if idx < 0 || idx >= C.int64_t(len(gPackedTxs)) {
+		return fmt.Errorf("invalid idx")
+	}
+
+	if gPackedTxs[idx] == nil {
+		return fmt.Errorf("invalid idx")
+	}
+
+	return nil
+}
 
 //export transaction_new_
 func transaction_new_(expiration C.int64_t, refBlock *C.char, chainId *C.char) C.int64_t {
@@ -92,12 +107,10 @@ func transaction_free_(_index C.int64_t) {
 
 //export transaction_add_action_
 func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data *C.char, permissions *C.char) *C.char {
-	if idx < 0 || idx >= C.int64_t(len(gPackedTxs)) {
-		return renderError(fmt.Errorf("invalid idx"))
+	if err := validateIndex(idx); err != nil {
+		return renderError(err)
 	}
-	if gPackedTxs[idx] == nil {
-		return renderError(fmt.Errorf("invalid idx"))
-	}
+
 	_account := C.GoString(account)
 	_name := C.GoString(name)
 	_data := C.GoString(data)
@@ -129,12 +142,8 @@ func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data 
 
 //export transaction_sign_
 func transaction_sign_(idx C.int64_t, pub *C.char) *C.char {
-	if idx < 0 || idx >= C.int64_t(len(gPackedTxs)) {
-		return renderError(fmt.Errorf("invalid idx"))
-	}
-
-	if gPackedTxs[idx] == nil {
-		return renderError(fmt.Errorf("invalid idx"))
+	if err := validateIndex(idx); err != nil {
+		return renderError(err)
 	}
 
 	_pub := C.GoString(pub)
@@ -143,6 +152,16 @@ func transaction_sign_(idx C.int64_t, pub *C.char) *C.char {
 		return renderError(err)
 	}
 	return renderData("ok")
+}
+
+//export transaction_pack_
+func transaction_pack_(idx C.int64_t) *C.char {
+	if err := validateIndex(idx); err != nil {
+		return renderError(err)
+	}
+
+	result := gPackedTxs[idx].String()
+	return renderData(result)
 }
 
 // func NewPackedtransaction(tx *Transaction) *PackedTransaction {

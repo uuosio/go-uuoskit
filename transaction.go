@@ -262,7 +262,7 @@ func (t *Transaction) Sign(privKey string, chainId string) (string, error) {
 func NewPackedtransaction(tx *Transaction) *PackedTransaction {
 	packed := &PackedTransaction{}
 	packed.Compression = "none"
-	packed.PackedTx = tx.Pack()
+	packed.PackedTx = nil
 	packed.tx = tx
 	return packed
 }
@@ -278,6 +278,10 @@ func (t *PackedTransaction) SetChainId(chainId string) error {
 }
 
 func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId []byte) error {
+	if t.PackedTx == nil {
+		t.PackedTx = t.tx.Pack()
+	}
+
 	hash := sha256.New()
 	hash.Write(chainId)
 	hash.Write(t.PackedTx)
