@@ -55,6 +55,12 @@ func wallet_import_(name *C.char, priv *C.char) *C.char {
 	return renderData("ok")
 }
 
+//export wallet_get_public_keys_
+func wallet_get_public_keys_() *C.char {
+	keys := GetWallet().GetPublicKeys()
+	return renderData(keys)
+}
+
 var gPackedTxs []*PackedTransaction
 
 func validateIndex(idx C.int64_t) error {

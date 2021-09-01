@@ -31,6 +31,15 @@ func (w *Wallet) Import(name string, strPriv string) error {
 	return nil
 }
 
+//GetPublicKeys
+func (w *Wallet) GetPublicKeys() []string {
+	keys := make([]string, len(w.keys))
+	for k := range w.keys {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 func (w *Wallet) GetPrivateKey(pubKey string) (*secp256k1.PrivateKey, error) {
 	priv, ok := w.keys[pubKey]
 	if !ok {
