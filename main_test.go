@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -107,20 +104,9 @@ func TestAbi(t *testing.T) {
 func TestTx(t *testing.T) {
 	secp256k1.Init()
 	defer secp256k1.Destroy()
+	rpc := NewRpc("https://testnode.uuos.network:8443")
 
-	tr := &http.Transport{
-		MaxIdleConns:       10,
-		IdleConnTimeout:    30 * time.Second,
-		DisableCompression: true,
-	}
-	client := &http.Client{Transport: tr}
-	resp, err := client.Get("https://testnode.uuos.network:8443/v1/chain/get_info")
-	if err != nil {
-		panic(err)
-	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("response Body:", string(body))
-	chainInfo, err := NewChainInfo(body)
+	chainInfo, err := rpc.GetInfo()
 	if err != nil {
 		panic(err)
 	}
@@ -171,15 +157,25 @@ func TestTx(t *testing.T) {
 	}
 	t.Log(packedTx.String())
 
-	buf := bytes.NewBuffer([]byte(packedTx.String()))
-
-	resp, err = client.Post("https://testnode.uuos.network:8443/v1/chain/push_transaction", "application/json", buf)
+	r, err := rpc.PushTransaction(packedTx)
 	if err != nil {
 		panic(err)
 	}
-	body, _ = ioutil.ReadAll(resp.Body)
-	fmt.Println("response Body:", string(body))
-	defer resp.Body.Close()
+
+	{
+		v, ok := DeepGet(r, "processed", "action_traces", 0, "action_ordinal")
+		if !ok {
+			panic("id not found")
+		}
+		t.Logf("%T\n", v)
+	}
+
+	// rr, err := json.MarshalIndent(r, "", " ")
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// t.Log(string(rr))
 }
 
 func TestIsoTime(tt *testing.T) {
@@ -198,4 +194,17 @@ func TestIsoTime(tt *testing.T) {
 	ut := t.UnixNano() / int64(time.Millisecond)
 
 	fmt.Println(ut)
+}
+
+func TestRpc(t *testing.T) {
+	rpc := NewRpc("http://www.google.com")
+	info, err := rpc.GetInfo()
+	if err != nil {
+		panic(err)
+	}
+	r, err := json.MarshalIndent(info, "", " ")
+	if err != nil {
+		panic(err)
+	}
+	t.Log(string(r))
 }
