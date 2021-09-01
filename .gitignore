@@ -1,3 +1,6 @@
+libuuoskit.a
+libuuoskit.h
+
 *.abi
 *.wasm
 uuoskit
