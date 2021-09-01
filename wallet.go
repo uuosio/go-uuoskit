@@ -33,7 +33,7 @@ func (w *Wallet) Import(name string, strPriv string) error {
 
 //GetPublicKeys
 func (w *Wallet) GetPublicKeys() []string {
-	keys := make([]string, len(w.keys))
+	keys := make([]string, 0, len(w.keys))
 	for k := range w.keys {
 		keys = append(keys, k)
 	}
