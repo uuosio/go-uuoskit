@@ -1,5 +1,14 @@
 package main
 
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+
+	"github.com/learnforpractice/go-secp256k1/secp256k1"
+)
+
 type TransactionExtension struct {
 	Type uint16
 	Data []byte
@@ -51,15 +60,57 @@ type Transaction struct {
 	Extention          []TransactionExtension
 }
 
-func NewTransaction(expiration int, taposBlockNum int, taposBlockPrefix int, delaySec int) *Transaction {
+// '{"signatures":
+// ["SIG_K1_KbSF8BCNVA95KzR1qLmdn4VnxRoLVFQ1fZ8VV5gVdW1hLfGBdcwEc93hF7FBkWZip1tq2Ps27UZxceaR3hYwAjKL7j59q8"],
+// "compression":"none",
+// "packed_context_free_data":"",
+// "packed_trx":"4bc52d61a9dd120d4ade000000000100a6823403ea3055000000572d3ccdcd0110428a97721aa36a00000000a8ed32323b10428a97721aa36a0000000000000e3d102700000000000004454f53000000001a7472616e736665722066726f6d20616c69636520746f20626f6200"}'
+
+type TxBytes []byte
+
+func (m TxBytes) MarshalJSON() ([]byte, error) {
+	return json.Marshal(hex.EncodeToString(m))
+}
+
+type PackedTransaction struct {
+	tx            *Transaction
+	Signatures    []string `json:"signatures"`
+	Compression   string   `json:"compression"`
+	PackedContext TxBytes  `json:"packed_context_free_data"`
+	PackedTx      TxBytes  `json:"packed_trx"`
+}
+
+func NewTransaction(expiration int) *Transaction {
 	t := &Transaction{}
 	t.Expiration = uint32(expiration)
-	t.RefBlockNum = uint16(taposBlockNum)
-	t.RefBlockPrefix = uint32(taposBlockPrefix)
+	// t.RefBlockNum = uint16(taposBlockNum)
+	// t.RefBlockPrefix = uint32(taposBlockPrefix)
 	t.MaxNetUsageWords = uint32(0)
 	t.MaxCpuUsageMs = uint8(0)
-	t.DelaySec = uint32(delaySec)
+	// t.DelaySec = uint32(delaySec)
 	return t
+}
+
+func GetRefBlockNum(refBlock []byte) uint32 {
+	return uint32(refBlock[0])<<24 | uint32(refBlock[1])<<16 | uint32(refBlock[2])<<8 | uint32(refBlock[3])
+}
+
+func GetRefBlockPrefix(refBlock []byte) uint32 {
+	return uint32(refBlock[11])<<24 | uint32(refBlock[10])<<16 | uint32(refBlock[9])<<8 | uint32(refBlock[8])
+}
+
+func (t *Transaction) SetReferenceBlock(refBlock string) error {
+	id, err := hex.DecodeString(refBlock)
+	if err != nil {
+		return err
+	}
+	t.RefBlockNum = uint16(GetRefBlockNum(id))
+	t.RefBlockPrefix = GetRefBlockPrefix(id)
+	return nil
+}
+
+func (t *Transaction) AddAction(a *Action) {
+	t.Actions = append(t.Actions, *a)
 }
 
 func (t *Transaction) Pack() []byte {
@@ -83,9 +134,9 @@ func (t *Transaction) Pack() []byte {
 	enc.Pack(t.Expiration)
 	enc.Pack(t.RefBlockNum)
 	enc.Pack(t.RefBlockPrefix)
-	enc.PackVarInt(t.MaxNetUsageWords)
+	enc.PackVarUint32(t.MaxNetUsageWords)
 	enc.PackUint8(t.MaxCpuUsageMs)
-	enc.PackVarInt(t.DelaySec)
+	enc.PackVarUint32(t.DelaySec)
 
 	enc.PackLength(len(t.ContextFreeActions))
 	for _, action := range t.ContextFreeActions {
@@ -181,4 +232,92 @@ func (t *Transaction) Unpack(data []byte) (int, error) {
 		}
 	}
 	return dec.Pos(), nil
+}
+
+func (t *Transaction) Sign(privKey string, chainId string) (string, error) {
+	data := t.Pack()
+
+	hash := sha256.New()
+	hash.Write(data)
+	digest := hash.Sum(nil)
+
+	priv, err := secp256k1.NewPrivateKeyFromBase58(privKey)
+	if err != nil {
+		return "", err
+	}
+	sign, err := secp256k1.Sign(digest, priv)
+	if err != nil {
+		return "", err
+	}
+	// type PackedTransaction struct {
+	// 	Signatures    []string `json:"signatures"`
+	// 	Compression   string   `json:"compression"`
+	// 	PackedContext []byte   `json:"packed_context_free_data"`
+	// 	PackedTx     []byte   `json:"packed_trx"`
+	// }
+	return sign.String(), nil
+}
+
+func NewPackedtransaction(tx *Transaction) *PackedTransaction {
+	packed := &PackedTransaction{}
+	packed.Compression = "none"
+	packed.PackedTx = tx.Pack()
+	return packed
+}
+
+func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId string) error {
+	id, err := hex.DecodeString(chainId)
+	if err != nil {
+		return err
+	}
+
+	if len(id) != 32 {
+		return errors.New("invalid chainId")
+	}
+
+	hash := sha256.New()
+	hash.Write(id)
+	hash.Write(t.PackedTx)
+	//TODO: hash context_free_data
+	cfdHash := [32]byte{}
+	hash.Write(cfdHash[:])
+	digest := hash.Sum(nil)
+
+	sign, err := priv.Sign(digest)
+	if err != nil {
+		return err
+	}
+
+	newSign := sign.String()
+	for i := range t.Signatures {
+		sig := t.Signatures[i]
+		if sig == newSign {
+			return nil
+		}
+	}
+
+	t.Signatures = append(t.Signatures, sign.String())
+	return nil
+}
+
+func (t *PackedTransaction) Sign(pubKey string, chainId string) error {
+	priv, err := GetWallet().GetPrivateKey(pubKey)
+	if err != nil {
+		return err
+	}
+
+	return t.sign(priv, chainId)
+}
+
+func (t *PackedTransaction) SignByPrivateKey(privKey string, chainId string) error {
+	priv, err := secp256k1.NewPrivateKeyFromBase58(privKey)
+	if err != nil {
+		return err
+	}
+	return t.sign(priv, chainId)
+}
+
+func (t *PackedTransaction) String() string {
+	packed, _ := json.Marshal(t)
+	return string(packed)
 }

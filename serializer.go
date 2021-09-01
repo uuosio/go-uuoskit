@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"unsafe"
 )
@@ -339,7 +340,7 @@ func (dec *Decoder) Unpack(i interface{}) (n int, err error) {
 }
 
 type Encoder struct {
-	buf []byte
+	buf bytes.Buffer
 }
 
 type Packer interface {
@@ -348,12 +349,12 @@ type Packer interface {
 
 func NewEncoder(initSize int) *Encoder {
 	ret := &Encoder{}
-	ret.buf = make([]byte, 0, initSize)
+	ret.buf.Grow(initSize)
 	return ret
 }
 
 func (enc *Encoder) Write(b []byte) {
-	enc.buf = append(enc.buf, b...)
+	enc.buf.Write(b)
 }
 
 // Pack supported types:
@@ -403,7 +404,7 @@ func (enc *Encoder) Pack(i interface{}) error {
 		// if DEBUG {
 		// 	panic(fmt.Sprintf("Unknow Pack type <%v>", i))
 		// }
-		panic("Unknow Pack type")
+		panic("Unknown Pack type")
 		//		return errors.New("Unknow Pack type")
 	}
 	return nil
@@ -433,6 +434,10 @@ func (enc *Encoder) PackBool(b bool) {
 	} else {
 		enc.Write([]byte{0})
 	}
+}
+
+func (enc *Encoder) PackInt8(d int8) {
+	enc.Write([]byte{byte(d)})
 }
 
 func (enc *Encoder) PackUint8(d uint8) {
@@ -467,7 +472,12 @@ func (enc *Encoder) PackUint64(d uint64) {
 	enc.Write(b[:])
 }
 
-func (enc *Encoder) PackVarInt(n uint32) {
+func (enc *Encoder) PackVarInt32(n int32) {
+	val := uint32((n << 1) ^ (n >> 31))
+	enc.Write(PackUint32(val))
+}
+
+func (enc *Encoder) PackVarUint32(n uint32) {
 	enc.Write(PackUint32(uint32(n)))
 }
 
@@ -527,5 +537,5 @@ func (enc *Encoder) WriteUint64(d uint64) {
 }
 
 func (enc *Encoder) GetBytes() []byte {
-	return enc.buf
+	return enc.buf.Bytes()
 }

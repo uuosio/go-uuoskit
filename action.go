@@ -32,10 +32,17 @@ type Action struct {
 	Data          []byte
 }
 
-func NewAction(account Name, name Name) *Action {
+func NewAction(account Name, name Name, args ...interface{}) *Action {
 	a := &Action{}
 	a.Account = account
 	a.Name = name
+	if len(args) > 0 {
+		enc := NewEncoder(64)
+		for _, arg := range args {
+			enc.Pack(arg)
+		}
+		a.Data = enc.GetBytes()
+	}
 	return a
 }
 

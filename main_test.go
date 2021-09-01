@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"fmt"
@@ -17,12 +21,13 @@ import (
 func TestOrderedMap(t *testing.T) {
 	t.Log("hello,world")
 	o := orderedmap.New()
-	json.Unmarshal([]byte(`{"hello":123, "a": "b"}`), &o)
+	json.Unmarshal([]byte(`{"hello": 123, "a": "b", "c": {"hello":123, "a": "b"}}`), &o)
 	fmt.Println(o)
 	s, _ := json.Marshal(o)
 	fmt.Println(string(s))
-	for k, v := range o.Keys() {
-		fmt.Println("+++++++k, v:", k, v)
+	for _, k := range o.Keys() {
+		v, _ := o.Get(k)
+		fmt.Printf("+++++++k %v, v %v, %T\n", k, v, v)
 	}
 }
 
@@ -76,7 +81,7 @@ func TestPackTransaction(t *testing.T) {
 }
 
 func TestAbi(t *testing.T) {
-	serializer := NewABISerializer()
+	serializer := GetABISerializer()
 	fieldType := serializer.GetType("transaction", "expiration")
 	t.Log("+++++++fieldType:", fieldType)
 
@@ -88,6 +93,109 @@ func TestAbi(t *testing.T) {
 		panic(err)
 	}
 	serializer.AddContractAbi("hello", strAbi)
-	actionStruct := serializer.FindActionType("hello", "transfer")
+	actionStruct := serializer.GetActionStructName("hello", "transfer")
 	t.Log("+++++++actionType:", actionStruct)
+
+	args := `{"from": "hello", "to": "alice", "quantity": "1.0000 EOS", "memo": "transfer from alice"}`
+	buf, err := serializer.PackAbiStructByName("hello", "transfer", args)
+	if err != nil {
+		panic(err)
+	}
+	t.Log("+++++++buf:", hex.EncodeToString(buf))
+}
+
+func TestTx(t *testing.T) {
+	secp256k1.Init()
+	defer secp256k1.Destroy()
+
+	tr := &http.Transport{
+		MaxIdleConns:       10,
+		IdleConnTimeout:    30 * time.Second,
+		DisableCompression: true,
+	}
+	client := &http.Client{Transport: tr}
+	resp, err := client.Get("https://testnode.uuos.network:8443/v1/chain/get_info")
+	if err != nil {
+		panic(err)
+	}
+	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println("response Body:", string(body))
+	chainInfo, err := NewChainInfo(body)
+	if err != nil {
+		panic(err)
+	}
+
+	//tx := &Transaction{}
+	expiration := int(time.Now().Unix()) + 60
+	tx := NewTransaction(expiration)
+	tx.SetReferenceBlock(chainInfo.LastIrreversibleBlockID)
+
+	pub := "EOS6AjF6hvF7GSuSd4sCgfPKq5uWaXvGM2aQtEUCwmEHygQaqxBSV"
+	priv := "5JRYimgLBrRLCBAcjHUWCYRv3asNedTYYzVgmiU4q2ZVxMBiJXL"
+	GetWallet().Import("test", "5JRYimgLBrRLCBAcjHUWCYRv3asNedTYYzVgmiU4q2ZVxMBiJXL")
+	privKey, err := secp256k1.NewPrivateKeyFromBase58(priv)
+	if err != nil {
+		panic(err)
+	}
+	pubKey, err := secp256k1.GetPublicKey(privKey)
+	if err != nil {
+		panic(err)
+	}
+	t.Log("+++++++pubKey:", pubKey.String())
+	action := NewAction(NewName("eosio.token"),
+		NewName("transfer"),
+		NewName("helloworld11"),
+		NewName("eosio.token"),
+		NewAsset(1000, NewSymbol("EOS", 4)),
+		"transfer from alice")
+	action.AddPermission(NewName("helloworld11"), NewName("active"))
+	tx.AddAction(action)
+
+	chainId := chainInfo.ChainID
+	sign, err := tx.Sign(priv, chainId)
+	if err != nil {
+		panic(err)
+	}
+	t.Log("++++++sign:", sign)
+
+	packedTx := NewPackedtransaction(tx)
+	err = packedTx.SignByPrivateKey(priv, chainId)
+	if err != nil {
+		panic(err)
+	}
+	t.Log(packedTx.String())
+
+	err = packedTx.Sign(pub, chainId)
+	if err != nil {
+		panic(err)
+	}
+	t.Log(packedTx.String())
+
+	buf := bytes.NewBuffer([]byte(packedTx.String()))
+
+	resp, err = client.Post("https://testnode.uuos.network:8443/v1/chain/push_transaction", "application/json", buf)
+	if err != nil {
+		panic(err)
+	}
+	body, _ = ioutil.ReadAll(resp.Body)
+	fmt.Println("response Body:", string(body))
+	defer resp.Body.Close()
+}
+
+func TestIsoTime(tt *testing.T) {
+	// convert iso-8601 into rfc-3339 format
+	rfc3339t := strings.Replace("2015-12-23 00:00:00", " ", "T", 1) + "Z"
+
+	rfc3339t = "2021-08-31T05:59:39" + "Z"
+
+	// parse rfc-3339 datetime
+	t, err := time.Parse(time.RFC3339, rfc3339t)
+	if err != nil {
+		panic(err)
+	}
+
+	// convert into unix time
+	ut := t.UnixNano() / int64(time.Millisecond)
+
+	fmt.Println(ut)
 }
