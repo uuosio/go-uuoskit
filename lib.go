@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"unsafe"
 
 	"github.com/learnforpractice/go-secp256k1/secp256k1"
 )
@@ -125,7 +126,7 @@ func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data 
 	var __data []byte
 	__data, err := hex.DecodeString(_data)
 	if err != nil {
-		__data, err = GetABISerializer().PackActionArgs(_account, _name, _data)
+		__data, err = GetABISerializer().PackActionArgs(_account, _name, []byte(_data))
 		if err != nil {
 			return renderError(err)
 		}
@@ -170,4 +171,41 @@ func transaction_pack_(idx C.int64_t) *C.char {
 	return renderData(result)
 }
 
-// func NewPackedtransaction(tx *Transaction) *PackedTransaction {
+//export abiserializer_add_contract_abi_
+func abiserializer_add_contract_abi_(account *C.char, abi *C.char, length C.int) *C.char {
+	_account := C.GoString(account)
+	_abi := C.GoBytes(unsafe.Pointer(abi), length)
+	err := GetABISerializer().AddContractABI(_account, _abi)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData("ok")
+}
+
+//export abiserializer_pack_action_args_
+func abiserializer_pack_action_args_(contractName *C.char, actionName *C.char, args *C.char, args_len C.int) *C.char {
+	_contractName := C.GoString(contractName)
+	_actionName := C.GoString(actionName)
+	_args := C.GoBytes(unsafe.Pointer(args), args_len)
+	result, err := GetABISerializer().PackActionArgs(_contractName, _actionName, _args)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(hex.EncodeToString(result))
+}
+
+//export abiserializer_unpack_action_args_
+func abiserializer_unpack_action_args_(contractName *C.char, actionName *C.char, args *C.char) *C.char {
+	_contractName := C.GoString(contractName)
+	_actionName := C.GoString(actionName)
+	_args := C.GoString(args)
+	__args, err := hex.DecodeString(_args)
+	if err != nil {
+		return renderError(err)
+	}
+	result, err := GetABISerializer().UnpackActionArgs(_contractName, _actionName, __args)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(string(result))
+}

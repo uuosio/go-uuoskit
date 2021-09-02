@@ -89,16 +89,23 @@ func TestAbi(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	serializer.AddContractAbi("hello", strAbi)
+	serializer.AddContractABI("hello", strAbi)
 	actionStruct := serializer.GetActionStructName("hello", "transfer")
 	t.Log("+++++++actionType:", actionStruct)
 
 	args := `{"from": "hello", "to": "alice", "quantity": "1.0000 EOS", "memo": "transfer from alice"}`
-	buf, err := serializer.PackActionArgs("hello", "transfer", args)
+	buf, err := serializer.PackActionArgs("hello", "transfer", []byte(args))
 	if err != nil {
 		panic(err)
 	}
 	t.Log("+++++++buf:", hex.EncodeToString(buf))
+	{
+		s, err := serializer.UnpackActionArgs("hello", "transfer", buf)
+		if err != nil {
+			panic(err)
+		}
+		t.Log("+++++++UnpackActionArgs:", string(s))
+	}
 
 	buf, err = serializer.PackAbiStructByName("hello", "transfer", args)
 	if err != nil {
@@ -151,13 +158,14 @@ func TestTx(t *testing.T) {
 	t.Log("++++++sign:", sign)
 
 	packedTx := NewPackedtransaction(tx)
+	packedTx.SetChainId(chainId)
 	err = packedTx.SignByPrivateKey(priv, chainId)
 	if err != nil {
 		panic(err)
 	}
 	t.Log(packedTx.String())
 
-	err = packedTx.Sign(pub, chainId)
+	err = packedTx.Sign(pub)
 	if err != nil {
 		panic(err)
 	}

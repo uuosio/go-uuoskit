@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/iancoleman/orderedmap"
 	"github.com/learnforpractice/go-secp256k1/secp256k1"
 )
 
@@ -80,6 +81,7 @@ type ABISerializer struct {
 	baseTypeMap    map[string]bool
 	contractAbiMap map[string]*ABI
 	enc            *Encoder
+	dec            *Decoder
 	contractName   string
 }
 
@@ -97,7 +99,7 @@ func GetABISerializer() *ABISerializer {
 	gSerializer.baseTypeMap = make(map[string]bool)
 	gSerializer.contractAbiMap = make(map[string]*ABI)
 
-	gSerializer.AddContractAbi("eosio.token", []byte(eosioTokenAbi))
+	gSerializer.AddContractABI("eosio.token", []byte(eosioTokenAbi))
 
 	for _, typeName := range baseTypes {
 		gSerializer.baseTypeMap[typeName] = true
@@ -131,24 +133,24 @@ func (t *ABISerializer) GetType(structName string, fieldName string) string {
 	return ""
 }
 
-func (t *ABISerializer) AddContractAbi(structName string, abi []byte) {
+func (t *ABISerializer) AddContractABI(structName string, abi []byte) error {
 	abiObj := &ABI{}
 	err := json.Unmarshal(abi, abiObj)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	t.contractAbiMap[structName] = abiObj
+	return nil
 }
 
-func (t *ABISerializer) PackActionArgs(contractName, actionName, args string) ([]byte, error) {
-	// t.enc.buf.Truncate(1024*1024)
+func (t *ABISerializer) PackActionArgs(contractName, actionName string, args []byte) ([]byte, error) {
 	t.contractName = contractName
 
 	t.enc.buf.Reset()
 
 	m := make(map[string]AbiValue)
-	err := json.Unmarshal([]byte(args), &m)
+	err := json.Unmarshal(args, &m)
 	if err != nil {
 		return nil, err
 	}
@@ -160,6 +162,23 @@ func (t *ABISerializer) PackActionArgs(contractName, actionName, args string) ([
 	ret := make([]byte, len(bs))
 	copy(ret, bs)
 	return ret, nil
+}
+
+func (t *ABISerializer) UnpackActionArgs(contractName string, actionName string, packedValue []byte) ([]byte, error) {
+	abiStruct := t.GetActionStruct(contractName, actionName)
+	if abiStruct == nil {
+		return nil, fmt.Errorf("unknown action %s::%s", contractName, actionName)
+	}
+
+	result, err := t.UnpackAbiStruct(contractName, abiStruct, packedValue)
+	if result == nil {
+		return nil, err
+	}
+	bs, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
 }
 
 func (t *ABISerializer) PackAbiStructByName(contractName string, structName string, args string) ([]byte, error) {
@@ -188,6 +207,9 @@ func StringToInt(s string) (int, error) {
 }
 
 func StripString(v string) (string, bool) {
+	if len(v) < 2 {
+		return "", false
+	}
 	if v[0] != '"' || v[len(v)-1] != '"' {
 		return "", false
 	}
@@ -219,6 +241,12 @@ func IsSymbolValid(sym string) bool {
 func (t *ABISerializer) PackAbiValue(typ string, value AbiValue) error {
 	v := value.value.(string)
 	return t.ParseAbiStringValue(typ, v)
+}
+
+//{"quantity":"1.0000 EOS","contract":"eosio.token"}
+type AbiExtendedAsset struct {
+	Quantity string `json:"quantity"`
+	Contract string `json:"contract"`
 }
 
 func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
@@ -409,13 +437,11 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		t.enc.PackBytes(bs)
 	case "string":
-		if len(v) < 2 {
-			return fmt.Errorf("not a string type")
+		v, ok := StripString(v)
+		if !ok {
+			return fmt.Errorf("invalid string value: %s", v)
 		}
-		if v[0] != '"' && v[len(v)-1] != '"' {
-			return fmt.Errorf("not a string type")
-		}
-		t.enc.PackString(v[1 : len(v)-1])
+		t.enc.PackString(v)
 	case "checksum160":
 		v, ok := StripString(v)
 		if !ok {
@@ -533,14 +559,239 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 			return fmt.Errorf("invalid asset value: %s", v)
 		}
 		t.enc.WriteBytes(r)
-	//defined in baseABI
-	// case "extended_asset":
-	// 	break
+	case "extended_asset":
+		a := AbiExtendedAsset{}
+		err := json.Unmarshal([]byte(v), &a)
+		if err != nil {
+			return err
+		}
+		r, ok := ParseAsset(a.Quantity)
+		if !ok {
+			return fmt.Errorf("invalid asset value: %s", v)
+		}
+		t.enc.WriteBytes(r)
+
+		n := S2N(a.Contract)
+		if N2S(n) != v {
+			return fmt.Errorf("invalid name value: %s", v)
+		}
+		t.enc.PackUint64(n)
 	default:
 		return fmt.Errorf("unknown type %s", typ)
 	}
 
 	return nil
+}
+
+func (t *ABISerializer) unpackAbiStructField(typ string) (interface{}, error) {
+	switch typ {
+	case "bool":
+		v, err := t.dec.UnpackBool()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "int8":
+		v, err := t.dec.UnpackInt8()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "uint8":
+		v, err := t.dec.UnpackUint8()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "int16":
+		v, err := t.dec.UnpackInt16()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "uint16":
+		v, err := t.dec.UnpackUint16()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "int32":
+		v, err := t.dec.UnpackInt32()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "uint32":
+		v, err := t.dec.UnpackUint32()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "int64":
+		v, err := t.dec.UnpackInt64()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "uint64":
+		v, err := t.dec.UnpackUint64()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "int128", "uint128", "float128":
+		buf := [16]byte{}
+		err := t.dec.Read(buf[:])
+		if err != nil {
+			return nil, err
+		}
+		return "0x" + hex.EncodeToString(buf[:]), nil
+	case "varint32":
+		v, err := t.dec.UnpackVarInt32()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "varuint32":
+		v, err := t.dec.UnpackVarUint32()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "float32":
+		v, err := t.dec.UnpackFloat32()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "float64":
+		v, err := t.dec.UnpackFloat64()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "time_point":
+		v, err := t.dec.ReadUint64()
+		if err != nil {
+			return nil, err
+		}
+		//convert seconds to iso8601
+		return time.Unix(0, int64(v)).Format("2006-01-02T15:04:05"), nil
+	case "time_point_sec", "block_timestamp_type":
+		v, err := t.dec.ReadUint32()
+		if err != nil {
+			return nil, err
+		}
+		//convert seconds to iso8601
+		return time.Unix(int64(v), 0).Format("2006-01-02T15:04:05"), nil
+	case "name":
+		v, err := t.dec.ReadUint64()
+		if err != nil {
+			return nil, err
+		}
+		return N2S(v), nil
+	case "bytes":
+		v, err := t.dec.UnpackBytes()
+		if err != nil {
+			return nil, err
+		}
+		return hex.EncodeToString(v), nil
+	case "string":
+		v, err := t.dec.UnpackString()
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	case "checksum160":
+		v := make([]byte, 20)
+		err := t.dec.Read(v)
+		if err != nil {
+			return nil, err
+		}
+		return hex.EncodeToString(v), nil
+	case "checksum256":
+		v := make([]byte, 32)
+		err := t.dec.Read(v)
+		if err != nil {
+			return nil, err
+		}
+		return hex.EncodeToString(v), nil
+	case "checksum512":
+		v := make([]byte, 64)
+		err := t.dec.Read(v)
+		if err != nil {
+			return nil, err
+		}
+		return hex.EncodeToString(v), nil
+	case "public_key":
+		v := make([]byte, 34)
+		err := t.dec.Read(v)
+		if err != nil {
+			return nil, err
+		}
+		pub := secp256k1.PublicKey{}
+		copy(pub.Data[:], v[1:])
+		return pub.String(), nil
+	case "signature":
+		v := make([]byte, 66)
+		err := t.dec.Read(v)
+		if err != nil {
+			return nil, err
+		}
+		sig := secp256k1.Signature{}
+		copy(sig.Data[:], v[1:])
+		return sig.String(), nil
+	case "symbol":
+		buf := make([]byte, 8)
+		err := t.dec.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		precision := int(buf[0])
+		sym := string(buf[1:])
+		sym = strings.TrimRight(sym, "\x00")
+		return fmt.Sprintf("%s,%d", sym, precision), nil
+	case "symbol_code":
+		buf := make([]byte, 8)
+		err := t.dec.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		sym := string(buf)
+		sym = strings.TrimRight(sym, "\x00")
+		return sym, nil
+	case "asset":
+		amount, err := t.dec.UnpackInt64()
+		if err != nil {
+			return nil, err
+		}
+		sym := make([]byte, 8)
+		err = t.dec.Read(sym)
+		if err != nil {
+			return nil, err
+		}
+		precision := int64(sym[0])
+		_sym := strings.TrimRight(string(sym[1:]), "\x00")
+		format := fmt.Sprintf("%%d.%%0%dd %%s", precision)
+		precision = int64(math.Pow10(int(precision)))
+		return fmt.Sprintf(format, amount/precision, amount%precision, _sym), nil
+	case "extended_asset":
+		// {"quantity":"1.0000 EOS","contract":"eosio.token"}
+		quantity, err := t.unpackAbiStructField("asset")
+		if err != nil {
+			return nil, err
+		}
+		contract, err := t.unpackAbiStructField("name")
+		if err != nil {
+			return nil, err
+		}
+		m := orderedmap.New()
+		m.Set("quantity", quantity)
+		m.Set("contract", contract)
+		return m, nil
+	default:
+		return nil, fmt.Errorf("unknown type %s", typ)
+	}
 }
 
 func ParseAsset(v string) ([]byte, bool) {
@@ -609,6 +860,81 @@ func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct,
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (t *ABISerializer) UnpackAbiStruct(contractName string, abiStruct *ABIStruct, packedValue []byte) (*orderedmap.OrderedMap, error) {
+	t.dec = NewDecoder(packedValue)
+	result := orderedmap.New()
+	err := t.unpackAbiStruct(contractName, abiStruct, result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruct, result *orderedmap.OrderedMap) error {
+	for _, v := range abiStruct.Fields {
+		typ := v.Type
+		name := v.Name
+
+		//try to unpack inner abi type
+		if _, ok := t.baseTypeMap[typ]; ok {
+			v, err := t.unpackAbiStructField(typ)
+			if err == nil {
+				result.Set(name, v)
+				continue
+			}
+		}
+
+		//try to unpack Abi struct
+		subStruct := t.GetAbiStruct(contractName, typ)
+		if subStruct != nil {
+			subResult := orderedmap.New()
+			result.Set(name, subResult)
+			err := t.unpackAbiStruct(contractName, subStruct, subResult)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		//try to unpack array
+		if !strings.HasSuffix(typ, "[]") {
+			return fmt.Errorf("unknown type %s", typ)
+		}
+		typ = strings.TrimSuffix(typ, "[]")
+		arr := make([]interface{}, 0)
+		count, err := t.dec.UnpackLength()
+		if err != nil {
+			return err
+		}
+		if _, ok := t.baseTypeMap[typ]; ok {
+			for i := 0; i < count; i++ {
+				v, err := t.unpackAbiStructField(typ)
+				if err != nil {
+					return err
+				}
+				arr = append(arr, v)
+			}
+			result.Set(name, arr)
+			continue
+		}
+
+		subStruct = t.GetAbiStruct(contractName, typ)
+		if subStruct == nil {
+			return fmt.Errorf("unknown type %s", typ)
+		}
+		for i := 0; i < count; i++ {
+			subResult := orderedmap.New()
+			err := t.unpackAbiStruct(contractName, subStruct, subResult)
+			if err != nil {
+				return err
+			}
+			arr = append(arr, subResult)
+		}
+		result.Set(name, arr)
 	}
 	return nil
 }

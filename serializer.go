@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"math"
 	"unsafe"
 )
 
@@ -104,9 +105,9 @@ func (dec *Decoder) Read(b []byte) error {
 	return nil
 }
 
-func (dec *Decoder) ReadInt() (int, error) {
-	d, err := dec.ReadUint32()
-	return int(d), err
+func (dec *Decoder) ReadInt32() (int32, error) {
+	n, err := dec.ReadUint32()
+	return int32(n), err
 }
 
 func (dec *Decoder) ReadUint32() (uint32, error) {
@@ -133,11 +134,6 @@ func (dec *Decoder) ReadUint16() (uint16, error) {
 	return d, nil
 }
 
-func (dec *Decoder) ReadInt32() (int32, error) {
-	n, err := dec.ReadUint32()
-	return int32(n), err
-}
-
 func (dec *Decoder) ReadInt64() (int64, error) {
 	n, err := dec.ReadUint64()
 	return int64(n), err
@@ -158,6 +154,10 @@ func (dec *Decoder) ReadBool() (bool, error) {
 		return false, err
 	}
 	return b[0] == 1, nil
+}
+
+func (dec *Decoder) UnpackBool() (bool, error) {
+	return dec.ReadBool()
 }
 
 func (dec *Decoder) UnpackString() (string, error) {
@@ -194,14 +194,39 @@ func (dec *Decoder) UnpackLength() (int, error) {
 	return int(v), nil
 }
 
-func (dec *Decoder) UnpackVarInt() (uint32, error) {
+func (dec *Decoder) UnpackVarInt32() (int32, error) {
+	v := uint32(0)
+	by := int(0)
+	for _, b := range dec.buf[dec.pos:] {
+		v |= uint32(b&0x7f) << by
+		by += 7
+		dec.pos += 1
+		if b&0x80 == 0 {
+			break
+		}
+	}
+	v = (v >> 1) ^ (^(v & 1) + 1)
+	return int32(v), nil
+}
+
+func (dec *Decoder) UnpackVarUint32() (uint32, error) {
 	n, v := UnpackUint32(dec.buf[dec.pos:])
 	dec.incPos(n)
 	return v, nil
 }
 
+func (dec *Decoder) UnpackInt16() (int16, error) {
+	v, err := dec.ReadInt16()
+	return v, err
+}
+
 func (dec *Decoder) UnpackUint16() (uint16, error) {
 	return dec.ReadUint16()
+}
+
+func (dec *Decoder) UnpackInt32() (int32, error) {
+	v, err := dec.ReadInt32()
+	return v, err
 }
 
 func (dec *Decoder) UnpackUint32() (uint32, error) {
@@ -210,6 +235,21 @@ func (dec *Decoder) UnpackUint32() (uint32, error) {
 		return 0, err
 	}
 	return v, nil
+}
+
+func (dec *Decoder) UnpackFloat32() (float32, error) {
+	v, err := dec.ReadUint32()
+	return math.Float32frombits(v), err
+}
+
+func (dec *Decoder) UnpackFloat64() (float64, error) {
+	v, err := dec.ReadUint64()
+	return math.Float64frombits(v), err
+}
+
+func (dec *Decoder) UnpackInt64() (int64, error) {
+	v, err := dec.ReadInt64()
+	return v, err
 }
 
 func (dec *Decoder) UnpackUint64() (uint64, error) {
@@ -226,6 +266,15 @@ func (dec *Decoder) ReadUint8() (uint8, error) {
 		return 0, err
 	}
 	return b[0], nil
+}
+
+func (dec *Decoder) ReadInt8() (int8, error) {
+	r, err := dec.ReadUint8()
+	return int8(r), err
+}
+
+func (dec *Decoder) UnpackInt8() (int8, error) {
+	return dec.ReadInt8()
 }
 
 func (dec *Decoder) UnpackUint8() (uint8, error) {
