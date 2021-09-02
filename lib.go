@@ -36,6 +36,9 @@ func renderError(err error) *C.char {
 func init_() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	secp256k1.Init()
+	if nil == GetABISerializer() {
+		panic("abi serializer not initialized")
+	}
 }
 
 //export say_hello_
