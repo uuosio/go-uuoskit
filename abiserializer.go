@@ -92,7 +92,7 @@ func GetABISerializer() *ABISerializer {
 		return gSerializer
 	}
 
-	gSerializer := &ABISerializer{}
+	gSerializer = &ABISerializer{}
 	gSerializer.enc = NewEncoder(1024 * 1024)
 
 	gSerializer.abiMap = make(map[string]*ABIStruct)
