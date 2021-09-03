@@ -212,3 +212,20 @@ func abiserializer_unpack_action_args_(contractName *C.char, actionName *C.char,
 	}
 	return renderData(string(result))
 }
+
+//export s2n_
+func s2n_(s *C.char) C.uint64_t {
+	return C.uint64_t(S2N(C.GoString(s)))
+}
+
+//export n2s_
+func n2s_(n C.uint64_t) *C.char {
+	return C.CString(N2S(uint64(n)))
+}
+
+//symbol to uint64
+//export sym2n_
+func sym2n_(str_symbol *C.char, precision C.uint64_t) C.uint64_t {
+	v := NewSymbol(C.GoString(str_symbol), int(uint64(precision))).Value
+	return C.uint64_t(v)
+}
