@@ -203,6 +203,46 @@ func (t *ABISerializer) PackAbiStructByName(contractName string, structName stri
 	return t.enc.buf.Bytes(), nil
 }
 
+func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) ([]byte, error) {
+	t.contractName = contractName
+
+	t.enc.buf.Reset()
+
+	m := make(map[string]AbiValue)
+	err := json.Unmarshal(args, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	abiStruct := t.GetAbiStruct(contractName, abiType)
+	if abiStruct == nil {
+		return nil, fmt.Errorf("abi struct not found for %s::%s", contractName, abiType)
+	}
+	t.PackAbiStruct(contractName, abiStruct, m)
+	bs := t.enc.buf.Bytes()
+	t.enc.buf.Reset()
+	ret := make([]byte, len(bs))
+	copy(ret, bs)
+	return ret, nil
+}
+
+func (t *ABISerializer) UnpackAbiType(contractName string, abiName string, packedValue []byte) ([]byte, error) {
+	abiStruct := t.GetAbiStruct(contractName, abiName)
+	if abiStruct == nil {
+		return nil, fmt.Errorf("unknown action %s::%s", contractName, abiName)
+	}
+
+	result, err := t.UnpackAbiStruct(contractName, abiStruct, packedValue)
+	if result == nil {
+		return nil, err
+	}
+	bs, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
+}
+
 func StringToInt(s string) (int, error) {
 	i, err := strconv.Atoi(s)
 	if err != nil {
@@ -849,6 +889,7 @@ func ParseAsset(v string) ([]byte, bool) {
 	return enc.GetBytes(), true
 }
 
+//TODO:
 func (t *ABISerializer) PackArrayAbiValue(typ string, value []AbiValue) error {
 	return nil
 }
@@ -963,23 +1004,18 @@ func (t *ABISerializer) ParseAbiValue(typ string, abiValue AbiValue) error {
 		}
 	case map[string]AbiValue:
 		s := t.GetAbiStruct(t.contractName, typ)
+		if s == nil {
+			return fmt.Errorf("Unknown ABI type %s", typ)
+		}
 		err := t.PackAbiStruct(t.contractName, s, v)
 		if err != nil {
 			return err
 		}
 	default:
-		return fmt.Errorf("unsupported type %[1]T: %[1]s", v)
+		return fmt.Errorf("Unsupported type %[1]T: %[1]s", v)
 	}
 	return nil
 }
-
-// func (t *ABISerializer) Pack(m orderedmap.OrderedMap) []byte {
-// 	return nil
-// }
-
-// func (t *ABISerializer) Unpack(b []byte, structName string) string {
-// 	return ""
-// }
 
 func (t *ABISerializer) GetAbiStruct(contractName string, structName string) *ABIStruct {
 	abi := t.contractAbiMap[contractName]

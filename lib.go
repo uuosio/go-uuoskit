@@ -174,8 +174,8 @@ func transaction_pack_(idx C.int64_t) *C.char {
 	return renderData(result)
 }
 
-//export abiserializer_add_contract_abi_
-func abiserializer_add_contract_abi_(account *C.char, abi *C.char, length C.int) *C.char {
+//export abiserializer_set_contract_abi_
+func abiserializer_set_contract_abi_(account *C.char, abi *C.char, length C.int) *C.char {
 	_account := C.GoString(account)
 	_abi := C.GoBytes(unsafe.Pointer(abi), length)
 	err := GetABISerializer().AddContractABI(_account, _abi)
@@ -207,6 +207,34 @@ func abiserializer_unpack_action_args_(contractName *C.char, actionName *C.char,
 		return renderError(err)
 	}
 	result, err := GetABISerializer().UnpackActionArgs(_contractName, _actionName, __args)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(string(result))
+}
+
+//export abiserializer_pack_abi_type_
+func abiserializer_pack_abi_type_(contractName *C.char, actionName *C.char, args *C.char, args_len C.int) *C.char {
+	_contractName := C.GoString(contractName)
+	_actionName := C.GoString(actionName)
+	_args := C.GoBytes(unsafe.Pointer(args), args_len)
+	result, err := GetABISerializer().PackAbiType(_contractName, _actionName, _args)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(hex.EncodeToString(result))
+}
+
+//export abiserializer_unpack_abi_type_
+func abiserializer_unpack_abi_type_(contractName *C.char, actionName *C.char, args *C.char) *C.char {
+	_contractName := C.GoString(contractName)
+	_actionName := C.GoString(actionName)
+	_args := C.GoString(args)
+	__args, err := hex.DecodeString(_args)
+	if err != nil {
+		return renderError(err)
+	}
+	result, err := GetABISerializer().UnpackAbiType(_contractName, _actionName, __args)
 	if err != nil {
 		return renderError(err)
 	}
