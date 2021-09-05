@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -38,10 +40,15 @@ type ABIStruct struct {
 	Fields []ABIStructField `json:"fields"`
 }
 
+type ABIType struct {
+	NewTypeName string `json:"new_type_name"`
+	Type        string `json:"type"`
+}
+
 type ABI struct {
 	Version          string        `json:"version"`
 	Structs          []ABIStruct   `json:"structs"`
-	Types            []string      `json:"types"`
+	Types            []ABIType     `json:"types"`
 	Actions          []ABIAction   `json:"actions"`
 	Tables           []ABITable    `json:"tables"`
 	RicardianClauses []interface{} `json:"ricardian_clauses"`
@@ -284,7 +291,17 @@ func IsSymbolValid(sym string) bool {
 }
 
 func (t *ABISerializer) PackAbiValue(typ string, value AbiValue) error {
+	// switch typ {
+	// case "string":
+	// 	v, ok := value.value.(string)
+	// 	if !ok {
+	// 		return fmt.Errorf("abi value type error")
+	// 	}
+	// 	t.enc.PackString(v)
+	// }
+
 	v := value.value.(string)
+	log.Println("++++++++++v:", v)
 	return t.ParseAbiStringValue(typ, v)
 }
 
@@ -346,6 +363,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		t.enc.PackUint16(uint16(n))
 		break
 	case "int32":
+		log.Println("++++++++++int32:", v)
 		n, err := StringToInt(v)
 		if err != nil {
 			return err
@@ -622,7 +640,8 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		t.enc.PackUint64(n)
 	default:
-		return fmt.Errorf("unknown type %s", typ)
+		errMsg := fmt.Sprintf("unsupported type: %s %T, %v\n", typ, v, v)
+		return errors.New(errMsg)
 	}
 
 	return nil
@@ -835,7 +854,8 @@ func (t *ABISerializer) unpackAbiStructField(typ string) (interface{}, error) {
 		m.Set("contract", contract)
 		return m, nil
 	default:
-		return nil, fmt.Errorf("unknown type %s", typ)
+		errMsg := fmt.Sprintf("unknown type %s", typ)
+		return nil, errors.New(errMsg)
 	}
 }
 
@@ -891,6 +911,14 @@ func ParseAsset(v string) ([]byte, bool) {
 
 //TODO:
 func (t *ABISerializer) PackArrayAbiValue(typ string, value []AbiValue) error {
+	t.enc.PackVarUint32(uint32(len(value)))
+	for _, v := range value {
+		_typ := strings.TrimSuffix(typ, "[]")
+		err := t.PackAbiValue(_typ, v)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -1017,8 +1045,16 @@ func (t *ABISerializer) ParseAbiValue(typ string, abiValue AbiValue) error {
 	return nil
 }
 
+func (t *ABISerializer) IsAbiCached(contractName string) bool {
+	_, ok := t.contractAbiMap[contractName]
+	return ok
+}
+
 func (t *ABISerializer) GetAbiStruct(contractName string, structName string) *ABIStruct {
 	abi := t.contractAbiMap[contractName]
+	if abi == nil {
+		return nil
+	}
 	for j := range abi.Structs {
 		s := &abi.Structs[j]
 		if s.Name == structName {

@@ -241,6 +241,17 @@ func abiserializer_unpack_abi_type_(contractName *C.char, actionName *C.char, ar
 	return renderData(string(result))
 }
 
+//export abiserializer_is_abi_cached_
+func abiserializer_is_abi_cached_(contractName *C.char) C.int {
+	_contractName := C.GoString(contractName)
+	result := GetABISerializer().IsAbiCached(_contractName)
+	if result {
+		return 1
+	} else {
+		return 0
+	}
+}
+
 //export s2n_
 func s2n_(s *C.char) C.uint64_t {
 	return C.uint64_t(S2N(C.GoString(s)))

@@ -112,8 +112,102 @@ func TestAbi(t *testing.T) {
 		panic(err)
 	}
 	t.Log("+++++++buf:", hex.EncodeToString(buf))
+
+	abi := `{
+		"version": "eosio::abi/1.0",
+		"types": [
+		],
+		"structs": [
+				{
+				"name": "sayhello",
+				"base": "",
+				"fields": [
+					{
+						"name": "name",
+						"type": "int32[]"
+					}
+				]
+			}
+		],
+		"actions": [{
+			"name": "sayhello",
+			"type": "sayhello",
+			"ricardian_contract": ""
+		}],
+		"tables": [],
+		"ricardian_clauses": [],
+		"error_messages": [],
+		"abi_extensions": []
+	}
+	`
+	serializer.AddContractABI("test", []byte(abi))
+	{
+		args := `{"name": [1, 2, 3]}`
+		buf, err := serializer.PackActionArgs("test", "sayhello", []byte(args))
+		if err != nil {
+			panic(err)
+		}
+		t.Log("+++++++buf:", hex.EncodeToString(buf))
+		{
+			s, err := serializer.UnpackActionArgs("test", "sayhello", buf)
+			if err != nil {
+				panic(err)
+			}
+			t.Log("+++++++UnpackActionArgs:", string(s))
+		}
+	}
+
 }
 
+func TestPackAbiArray(t *testing.T) {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	serializer := GetABISerializer()
+	abi := `{
+		"version": "eosio::abi/1.0",
+		"types": [
+		],
+		"structs": [
+				{
+				"name": "sayhello",
+				"base": "",
+				"fields": [
+					{
+						"name": "name",
+						"type": "int32[]"
+					}
+				]
+			}
+		],
+		"actions": [{
+			"name": "sayhello",
+			"type": "sayhello",
+			"ricardian_contract": ""
+		}],
+		"tables": [],
+		"ricardian_clauses": [],
+		"error_messages": [],
+		"abi_extensions": []
+	}
+	`
+	serializer.AddContractABI("test", []byte(abi))
+	{
+		args := `{"name": [1, 2, 3]}`
+		buf, err := serializer.PackActionArgs("test", "sayhello", []byte(args))
+		if err != nil {
+			panic(err)
+		}
+		t.Log("+++++++buf:", hex.EncodeToString(buf))
+		{
+			s, err := serializer.UnpackActionArgs("test", "sayhello", buf)
+			if err != nil {
+				panic(err)
+			}
+			t.Log("+++++++UnpackActionArgs:", string(s))
+		}
+	}
+
+}
 func TestTx(t *testing.T) {
 	secp256k1.Init()
 	defer secp256k1.Destroy()
