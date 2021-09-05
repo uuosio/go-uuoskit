@@ -1,13 +1,85 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
+	"errors"
 	"math"
 	"unsafe"
 )
 
-func UnpackUint32(val []byte) (n int, v uint32) {
+type Uint128 [16]byte
+type Float128 [16]byte
+type Uint256 [32]byte
+
+func PackVarInt32(v int32) []byte {
+	i := 0
+	buf := [8]byte{}
+	val := uint32((v << 1) ^ (v >> 31))
+	for {
+		b := uint8(val) & uint8(0x7f)
+		val >>= 7
+		if val > 0 {
+			b |= uint8(1 << 7)
+		}
+		buf[i] = b
+		i += 1
+		if val == 0 {
+			break
+		}
+	}
+	return buf[:i]
+}
+
+func PackedVarInt32Length(v int32) int {
+	i := 0
+	val := uint32((v << 1) ^ (v >> 31))
+	for {
+		b := uint8(val) & uint8(0x7f)
+		val >>= 7
+		if val > 0 {
+			b |= uint8(1 << 7)
+		}
+		i += 1
+		if val == 0 {
+			break
+		}
+	}
+	return i
+}
+
+func UnpackVarInt32(buf []byte) (int32, int) {
+	v := uint32(0)
+	by := int(0)
+	length := 0
+	for _, b := range buf {
+		v |= uint32(b&0x7f) << by
+		by += 7
+		length += 1
+		if b&0x80 == 0 {
+			break
+		}
+	}
+	v = (v >> 1) ^ (^(v & 1) + 1)
+	return int32(v), length
+}
+
+func PackVarUint32(val uint32) []byte {
+	result := make([]byte, 0, 5)
+	for {
+		b := byte(val & 0x7f)
+		val >>= 7
+		if val > 0 {
+			b |= byte(1 << 7)
+		}
+		result = append(result, b)
+		if val <= 0 {
+			break
+		}
+	}
+	return result
+}
+
+func UnpackVarUint32(val []byte) (v uint32, n int) {
 	var by int = 0
 	// if len(val) > 5 {
 	// 	val = val[:5]
@@ -24,23 +96,7 @@ func UnpackUint32(val []byte) (n int, v uint32) {
 	return
 }
 
-func PackUint32(val uint32) []byte {
-	result := make([]byte, 0, 5)
-	for {
-		b := byte(val & 0x7f)
-		val >>= 7
-		if val > 0 {
-			b |= byte(1 << 7)
-		}
-		result = append(result, b)
-		if val <= 0 {
-			break
-		}
-	}
-	return result
-}
-
-func PackedSizeLength(val uint32) int {
+func PackedVarUint32Length(val uint32) int {
 	n := 0
 	for {
 		b := byte(val & 0x7f)
@@ -70,7 +126,7 @@ type Unpacker interface {
 	Unpack(data []byte) (int, error)
 }
 
-type StructSize interface {
+type PackedSize interface {
 	Size() int
 }
 
@@ -106,8 +162,8 @@ func (dec *Decoder) Read(b []byte) error {
 }
 
 func (dec *Decoder) ReadInt32() (int32, error) {
-	n, err := dec.ReadUint32()
-	return int32(n), err
+	d, err := dec.ReadUint32()
+	return int32(d), err
 }
 
 func (dec *Decoder) ReadUint32() (uint32, error) {
@@ -146,6 +202,22 @@ func (dec *Decoder) ReadUint64() (uint64, error) {
 	}
 	d := binary.LittleEndian.Uint64(b[:])
 	return d, nil
+}
+
+func (dec *Decoder) ReadFloat32() (float32, error) {
+	n, err := dec.ReadUint32()
+	if err != nil {
+		return 0, err
+	}
+	return *(*float32)(unsafe.Pointer(&n)), nil
+}
+
+func (dec *Decoder) ReadFloat64() (float64, error) {
+	n, err := dec.ReadUint64()
+	if err != nil {
+		return 0, err
+	}
+	return *(*float64)(unsafe.Pointer(&n)), nil
 }
 
 func (dec *Decoder) ReadBool() (bool, error) {
@@ -189,28 +261,19 @@ func (dec *Decoder) UnpackBytes() ([]byte, error) {
 }
 
 func (dec *Decoder) UnpackLength() (int, error) {
-	n, v := UnpackUint32(dec.buf[dec.pos:])
+	v, n := UnpackVarUint32(dec.buf[dec.pos:])
 	dec.incPos(n)
 	return int(v), nil
 }
 
 func (dec *Decoder) UnpackVarInt32() (int32, error) {
-	v := uint32(0)
-	by := int(0)
-	for _, b := range dec.buf[dec.pos:] {
-		v |= uint32(b&0x7f) << by
-		by += 7
-		dec.pos += 1
-		if b&0x80 == 0 {
-			break
-		}
-	}
-	v = (v >> 1) ^ (^(v & 1) + 1)
-	return int32(v), nil
+	v, n := UnpackVarInt32(dec.buf[dec.pos:])
+	dec.incPos(n)
+	return v, nil
 }
 
 func (dec *Decoder) UnpackVarUint32() (uint32, error) {
-	n, v := UnpackUint32(dec.buf[dec.pos:])
+	v, n := UnpackVarUint32(dec.buf[dec.pos:])
 	dec.incPos(n)
 	return v, nil
 }
@@ -226,7 +289,7 @@ func (dec *Decoder) UnpackUint16() (uint16, error) {
 
 func (dec *Decoder) UnpackInt32() (int32, error) {
 	v, err := dec.ReadInt32()
-	return v, err
+	return int32(v), err
 }
 
 func (dec *Decoder) UnpackUint32() (uint32, error) {
@@ -260,17 +323,20 @@ func (dec *Decoder) UnpackUint64() (uint64, error) {
 	return v, nil
 }
 
+func (dec *Decoder) ReadInt8() (int8, error) {
+	var b [1]byte
+	if err := dec.Read(b[:]); err != nil {
+		return 0, err
+	}
+	return int8(b[0]), nil
+}
+
 func (dec *Decoder) ReadUint8() (uint8, error) {
 	var b [1]byte
 	if err := dec.Read(b[:]); err != nil {
 		return 0, err
 	}
 	return b[0], nil
-}
-
-func (dec *Decoder) ReadInt8() (int8, error) {
-	r, err := dec.ReadUint8()
-	return int8(r), err
 }
 
 func (dec *Decoder) UnpackInt8() (int8, error) {
@@ -292,7 +358,7 @@ func (dec *Decoder) UnpackAction() (*Action, error) {
 }
 
 // Unpack supported type:
-// Unpacker interface,
+// Unpacker, interface,
 // *string, *[]byte,
 // *uint8, *int16, *uint16, *int32, *uint32, *int64, *uint64, *bool
 // *float64
@@ -315,6 +381,20 @@ func (dec *Decoder) Unpack(i interface{}) (n int, err error) {
 		n = dec.Pos()
 		*v, err = dec.UnpackBytes()
 		return dec.Pos() - n, err
+	case *bool:
+		n, err := dec.ReadBool()
+		if err != nil {
+			return 0, err
+		}
+		*v = n
+		return 1, err
+	case *int8:
+		n, err := dec.ReadInt8()
+		if err != nil {
+			return 0, err
+		}
+		*v = n
+		return 1, err
 	case *uint8:
 		n, err := dec.ReadUint8()
 		if err != nil {
@@ -364,13 +444,20 @@ func (dec *Decoder) Unpack(i interface{}) (n int, err error) {
 		}
 		*v = n
 		return 8, err
-	case *float64:
-		n, err := dec.ReadUint64()
+	case *float32:
+		n, err := dec.ReadFloat32()
 		if err != nil {
 			return 0, err
 		}
-		*v = *(*float64)(unsafe.Pointer(&n))
-		return 8, nil
+		*v = n
+		return 4, err
+	case *float64:
+		n, err := dec.ReadFloat64()
+		if err != nil {
+			return 0, err
+		}
+		*v = n
+		return 8, err
 	// Name struct implemented Unpacker interface
 	// case *Name:
 	// 	n, err := dec.UnpackUint64()
@@ -389,7 +476,7 @@ func (dec *Decoder) Unpack(i interface{}) (n int, err error) {
 }
 
 type Encoder struct {
-	buf bytes.Buffer
+	buf []byte
 }
 
 type Packer interface {
@@ -398,12 +485,24 @@ type Packer interface {
 
 func NewEncoder(initSize int) *Encoder {
 	ret := &Encoder{}
-	ret.buf.Grow(initSize)
+	ret.buf = make([]byte, 0, initSize)
 	return ret
 }
 
+func (enc *Encoder) Reset() {
+	enc.buf = enc.buf[:0]
+}
+
+func (enc *Encoder) Bytes() []byte {
+	return enc.buf
+}
+
 func (enc *Encoder) Write(b []byte) {
-	enc.buf.Write(b)
+	enc.buf = append(enc.buf, b...)
+}
+
+func (enc *Encoder) WriteByte(b byte) {
+	enc.buf = append(enc.buf, b)
 }
 
 // Pack supported types:
@@ -425,8 +524,10 @@ func (enc *Encoder) Pack(i interface{}) error {
 		} else {
 			enc.Write([]byte{0})
 		}
+	case int8:
+		enc.WriteByte(byte(v))
 	case uint8:
-		enc.Write([]byte{v})
+		enc.WriteByte(byte(v))
 	case int16:
 		enc.WriteInt16(v)
 	case uint16:
@@ -474,23 +575,27 @@ func (enc *Encoder) PackName(name Name) {
 }
 
 func (enc *Encoder) PackLength(n int) {
-	enc.Write(PackUint32(uint32(n)))
+	enc.Write(PackVarUint32(uint32(n)))
+}
+
+func (enc *Encoder) PackVarUint32(n uint32) {
+	enc.Write(PackVarUint32(uint32(n)))
 }
 
 func (enc *Encoder) PackBool(b bool) {
 	if b {
-		enc.Write([]byte{1})
+		enc.WriteByte(byte(1))
 	} else {
-		enc.Write([]byte{0})
+		enc.WriteByte(byte(0))
 	}
 }
 
 func (enc *Encoder) PackInt8(d int8) {
-	enc.Write([]byte{byte(d)})
+	enc.WriteByte(byte(d))
 }
 
 func (enc *Encoder) PackUint8(d uint8) {
-	enc.Write([]byte{d})
+	enc.WriteByte(byte(d))
 }
 
 func (enc *Encoder) PackInt16(d int16) {
@@ -522,21 +627,16 @@ func (enc *Encoder) PackUint64(d uint64) {
 }
 
 func (enc *Encoder) PackVarInt32(n int32) {
-	val := uint32((n << 1) ^ (n >> 31))
-	enc.Write(PackUint32(val))
-}
-
-func (enc *Encoder) PackVarUint32(n uint32) {
-	enc.Write(PackUint32(uint32(n)))
+	enc.Write(PackVarInt32(int32(n)))
 }
 
 func (enc *Encoder) PackString(s string) {
-	enc.Write(PackUint32(uint32(len(s))))
+	enc.Write(PackVarUint32(uint32(len(s))))
 	enc.Write([]byte(s))
 }
 
 func (enc *Encoder) PackBytes(v []byte) {
-	enc.Write(PackUint32(uint32(len(v))))
+	enc.Write(PackVarUint32(uint32(len(v))))
 	enc.Write([]byte(v))
 }
 
@@ -586,5 +686,46 @@ func (enc *Encoder) WriteUint64(d uint64) {
 }
 
 func (enc *Encoder) GetBytes() []byte {
-	return enc.buf.Bytes()
+	return enc.buf
+}
+
+func CalcPackedSize(i interface{}) (int, error) {
+	switch v := i.(type) {
+	case PackedSize:
+		return v.Size(), nil
+	case string:
+		return PackedVarUint32Length(uint32(len(v))) + len(v), nil
+	case []byte:
+		return PackedVarUint32Length(uint32(len(v))) + len(v), nil
+	case bool:
+		return 1, nil
+	case uint8:
+		return 1, nil
+	case int16:
+		return 2, nil
+	case uint16:
+		return 2, nil
+	case int32:
+		return 4, nil
+	case uint32:
+		return 4, nil
+	case int64:
+		return 8, nil
+	case uint64:
+		return 8, nil
+	case Uint128:
+		return 16, nil
+	case Float128:
+		return 16, nil
+	case Uint256:
+		return 32, nil
+	case float32:
+		return 4, nil
+	case float64:
+		return 8, nil
+	case Name:
+		return 8, nil
+	default:
+		return 0, errors.New("Unknow pack type")
+	}
 }

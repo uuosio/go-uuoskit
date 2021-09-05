@@ -156,7 +156,7 @@ func (t *ABISerializer) AddContractABI(contractName string, abi []byte) error {
 func (t *ABISerializer) PackActionArgs(contractName, actionName string, args []byte) ([]byte, error) {
 	t.contractName = contractName
 
-	t.enc.buf.Reset()
+	t.enc.buf = t.enc.buf[:0]
 
 	m := make(map[string]AbiValue)
 	err := json.Unmarshal(args, &m)
@@ -169,8 +169,8 @@ func (t *ABISerializer) PackActionArgs(contractName, actionName string, args []b
 		return nil, fmt.Errorf("abi struct not found for %s::%s", contractName, actionName)
 	}
 	t.PackAbiStruct(contractName, abiStruct, m)
-	bs := t.enc.buf.Bytes()
-	t.enc.buf.Reset()
+	bs := t.enc.buf
+	t.enc.Reset()
 	ret := make([]byte, len(bs))
 	copy(ret, bs)
 	return ret, nil
@@ -194,7 +194,7 @@ func (t *ABISerializer) UnpackActionArgs(contractName string, actionName string,
 }
 
 func (t *ABISerializer) PackAbiStructByName(contractName string, structName string, args string) ([]byte, error) {
-	t.enc.buf.Reset()
+	t.enc.Reset()
 	t.contractName = contractName
 	m := make(map[string]AbiValue)
 	err := json.Unmarshal([]byte(args), &m)
@@ -207,13 +207,13 @@ func (t *ABISerializer) PackAbiStructByName(contractName string, structName stri
 	if err != nil {
 		return nil, err
 	}
-	return t.enc.buf.Bytes(), nil
+	return t.enc.Bytes(), nil
 }
 
 func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) ([]byte, error) {
 	t.contractName = contractName
 
-	t.enc.buf.Reset()
+	t.enc.Reset()
 
 	m := make(map[string]AbiValue)
 	err := json.Unmarshal(args, &m)
@@ -226,8 +226,8 @@ func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) (
 		return nil, fmt.Errorf("abi struct not found for %s::%s", contractName, abiType)
 	}
 	t.PackAbiStruct(contractName, abiStruct, m)
-	bs := t.enc.buf.Bytes()
-	t.enc.buf.Reset()
+	bs := t.enc.Bytes()
+	t.enc.Reset()
 	ret := make([]byte, len(bs))
 	copy(ret, bs)
 	return ret, nil
