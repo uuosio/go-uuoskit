@@ -169,6 +169,12 @@ func (t *ABISerializer) GetType(structName string, fieldName string) string {
 }
 
 func (t *ABISerializer) AddContractABI(contractName string, abi []byte) error {
+	if len(abi) == 0 {
+		if _, ok := t.contractAbiMap[contractName]; ok {
+			delete(t.contractAbiMap, contractName)
+		}
+		return nil
+	}
 	abiObj := &ABI{}
 	err := json.Unmarshal(abi, abiObj)
 	if err != nil {
