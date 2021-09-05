@@ -304,6 +304,47 @@ func TestIsoTime(tt *testing.T) {
 	fmt.Println(ut)
 }
 
+func TestPackAbi(t *testing.T) {
+	abi := `{
+		"version": "eosio::abi/1.0",
+		"types": [
+		],
+		"structs": [
+				{
+				"name": "sayhello",
+				"base": "",
+				"fields": [
+					{
+						"name": "name",
+						"type": "int32[]"
+					}
+				]
+			}
+		],
+		"actions": [{
+			"name": "sayhello",
+			"type": "sayhello",
+			"ricardian_contract": ""
+		}],
+		"tables": [],
+		"ricardian_clauses": [],
+		"error_messages": [],
+		"abi_extensions": []
+	}
+	`
+	bin, err := GetABISerializer().PackABI(abi)
+	if err != nil {
+		panic(err)
+	}
+	t.Log(hex.EncodeToString(bin))
+
+	s, err := GetABISerializer().UnpackABI(bin)
+	if err != nil {
+		panic(err)
+	}
+	t.Log(s)
+}
+
 func TestRpc(t *testing.T) {
 	rpc := NewRpc("http://www.google.com")
 	info, err := rpc.GetInfo()

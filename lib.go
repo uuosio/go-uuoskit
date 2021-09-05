@@ -268,3 +268,23 @@ func sym2n_(str_symbol *C.char, precision C.uint64_t) C.uint64_t {
 	v := NewSymbol(C.GoString(str_symbol), int(uint64(precision))).Value
 	return C.uint64_t(v)
 }
+
+//export abiserializer_pack_abi_
+func abiserializer_pack_abi_(str_abi *C.char) *C.char {
+	_str_abi := C.GoString(str_abi)
+	result, err := GetABISerializer().PackABI(_str_abi)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(hex.EncodeToString(result))
+}
+
+//export abiserializer_unpack_abi_
+func abiserializer_unpack_abi_(abi *C.char, length C.int) *C.char {
+	_abi := C.GoBytes(unsafe.Pointer(abi), length)
+	result, err := GetABISerializer().UnpackABI(_abi)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(result)
+}

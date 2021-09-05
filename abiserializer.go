@@ -45,16 +45,42 @@ type ABIType struct {
 	Type        string `json:"type"`
 }
 
+type ClausePair struct {
+	Id   string `json:"id"`
+	Body string `json:"body"`
+}
+
+type ErrorMessage struct {
+	ErrorCode uint64 `json:"error_code"`
+	ErrorMsg  string `json:"error_msg"`
+}
+
+// struct variant_def {
+// 	std::string              name{};
+// 	std::vector<std::string> types{};
+//  };
+
+type VariantDef struct {
+	Name  string   `json:"name"`
+	Types []string `json:"types"`
+}
+
+//std::vector<std::pair<uint16_t, std::vector<char>>>;
+type AbiExtension struct {
+	Type      uint16 `json:"type_name"`
+	Extension []byte `json:"extension"`
+}
+
 type ABI struct {
-	Version          string        `json:"version"`
-	Structs          []ABIStruct   `json:"structs"`
-	Types            []ABIType     `json:"types"`
-	Actions          []ABIAction   `json:"actions"`
-	Tables           []ABITable    `json:"tables"`
-	RicardianClauses []interface{} `json:"ricardian_clauses"`
-	Variants         []interface{} `json:"variants"`
-	AbiExtensions    []interface{} `json:"abi_extensions"`
-	ErrorMessages    []interface{} `json:"error_messages"`
+	Version          string         `json:"version"`
+	Types            []ABIType      `json:"types"`
+	Structs          []ABIStruct    `json:"structs"`
+	Actions          []ABIAction    `json:"actions"`
+	Tables           []ABITable     `json:"tables"`
+	RicardianClauses []ClausePair   `json:"ricardian_clauses"`
+	ErrorMessages    []ErrorMessage `json:"error_messages"`
+	AbiExtensions    []AbiExtension `json:"abi_extensions"`
+	// Variants         []VariantDef   `json:"variants"`
 }
 
 type AbiValue struct {
@@ -1101,4 +1127,290 @@ func (t *ABISerializer) GetActionStructName(contractName string, actionName stri
 		}
 	}
 	return ""
+}
+
+func (t *ABISerializer) PackABI(strABI string) ([]byte, error) {
+	abi := &ABI{}
+	err := json.Unmarshal([]byte(strABI), abi)
+	if err != nil {
+		return nil, err
+	}
+
+	enc := NewEncoder(len(strABI) * 3)
+	enc.PackString(abi.Version)
+	enc.PackVarUint32(uint32(len(abi.Types)))
+	for i := range abi.Types {
+		t := &abi.Types[i]
+		enc.PackString(t.NewTypeName)
+		enc.PackString(t.Type)
+	}
+
+	enc.PackVarUint32(uint32(len(abi.Structs)))
+	for i := range abi.Structs {
+		s := &abi.Structs[i]
+		enc.PackString(s.Name)
+		enc.PackString(s.Base)
+		enc.PackVarUint32(uint32(len(s.Fields)))
+		for j := range s.Fields {
+			f := &s.Fields[j]
+			enc.PackString(f.Name)
+			enc.PackString(f.Type)
+		}
+	}
+
+	enc.PackVarUint32(uint32(len(abi.Actions)))
+	for i := range abi.Actions {
+		a := &abi.Actions[i]
+		name := NewName(a.Name)
+		enc.PackName(name)
+		enc.PackString(a.Type)
+		enc.PackString(a.RicardianContract)
+	}
+
+	enc.PackVarUint32(uint32(len(abi.Tables)))
+	for i := range abi.Tables {
+		t := &abi.Tables[i]
+		name := NewName(t.Name)
+		enc.PackName(name)
+		enc.PackString(t.Type)
+		enc.PackString(t.IndexType)
+		enc.PackVarUint32(uint32(len(t.KeyTypes)))
+		for j := range t.KeyNames {
+			enc.PackString(t.KeyNames[j])
+		}
+		enc.PackVarUint32(uint32(len(t.KeyTypes)))
+		for j := range t.KeyTypes {
+			enc.PackString(t.KeyTypes[j])
+		}
+	}
+
+	enc.PackVarUint32(uint32(len(abi.RicardianClauses)))
+	for i := range abi.RicardianClauses {
+		a := &abi.RicardianClauses[i]
+		enc.PackString(a.Id)
+		enc.PackString(a.Body)
+	}
+
+	enc.PackVarUint32(uint32(len(abi.ErrorMessages)))
+	for i := range abi.ErrorMessages {
+		a := &abi.ErrorMessages[i]
+		enc.PackUint64(a.ErrorCode)
+		enc.PackString(a.ErrorMsg)
+	}
+
+	enc.PackVarUint32(uint32(len(abi.AbiExtensions)))
+	for i := range abi.AbiExtensions {
+		a := &abi.AbiExtensions[i]
+		enc.PackUint16(a.Type)
+		enc.PackBytes(a.Extension)
+	}
+	return enc.Bytes(), nil
+}
+
+func (t *ABISerializer) UnpackABI(rawAbi []byte) (string, error) {
+	dec := NewDecoder(rawAbi)
+	abi := &ABI{}
+
+	version, err := dec.UnpackString()
+	if err != nil {
+		return "", err
+	}
+	abi.Version = version
+
+	length, err := dec.UnpackVarUint32()
+	if err != nil {
+		return "", err
+	}
+	for ; length > 0; length -= 1 {
+		t := &ABIType{}
+		t.NewTypeName, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+		t.Type, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+		abi.Types = append(abi.Types, *t)
+	}
+
+	length, err = dec.UnpackVarUint32()
+	if err != nil {
+		return "", err
+	}
+	for ; length > 0; length -= 1 {
+		s := &ABIStruct{}
+		s.Name, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+		s.Base, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+
+		length2, err := dec.UnpackVarUint32()
+		if err != nil {
+			return "", err
+		}
+		for ; length2 > 0; length2 -= 1 {
+			f := &ABIStructField{}
+			f.Name, err = dec.UnpackString()
+			if err != nil {
+				return "", err
+			}
+			f.Type, err = dec.UnpackString()
+			if err != nil {
+				return "", err
+			}
+			s.Fields = append(s.Fields, *f)
+		}
+		abi.Structs = append(abi.Structs, *s)
+	}
+
+	length, err = dec.UnpackVarUint32()
+	if err != nil {
+		return "", err
+	}
+	for ; length > 0; length -= 1 {
+		a := &ABIAction{}
+		name, err := dec.UnpackName()
+		if err != nil {
+			return "", err
+		}
+		a.Name = name.String()
+
+		a.Type, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+		a.RicardianContract, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+		abi.Actions = append(abi.Actions, *a)
+	}
+
+	length, err = dec.UnpackVarUint32()
+	if err != nil {
+		return "", err
+	}
+	for ; length > 0; length -= 1 {
+		t := &ABITable{}
+		name, err := dec.UnpackName()
+		if err != nil {
+			return "", err
+		}
+		t.Name = name.String()
+		t.Type, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+		t.IndexType, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+		length2, err := dec.UnpackVarUint32()
+		if err != nil {
+			return "", err
+		}
+		for ; length2 > 0; length2 -= 1 {
+			key, err := dec.UnpackString()
+			if err != nil {
+				return "", err
+			}
+			t.KeyNames = append(t.KeyNames, key)
+		}
+		length2, err = dec.UnpackVarUint32()
+		if err != nil {
+			return "", err
+		}
+		for ; length2 > 0; length2 -= 1 {
+			s, err := dec.UnpackString()
+			if err != nil {
+				return "", err
+			}
+			t.KeyTypes = append(t.KeyTypes, s)
+		}
+		abi.Tables = append(abi.Tables, *t)
+	}
+
+	length, err = dec.UnpackVarUint32()
+	if err != nil {
+		return "", err
+	}
+	for ; length > 0; length -= 1 {
+		a := ClausePair{}
+		a.Id, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+		a.Body, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+		abi.RicardianClauses = append(abi.RicardianClauses, a)
+	}
+
+	length, err = dec.UnpackVarUint32()
+	if err != nil {
+		return "", err
+	}
+	for ; length > 0; length -= 1 {
+		a := &ErrorMessage{}
+		a.ErrorCode, err = dec.UnpackUint64()
+		if err != nil {
+			return "", err
+		}
+		a.ErrorMsg, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+		abi.ErrorMessages = append(abi.ErrorMessages, *a)
+	}
+
+	length, err = dec.UnpackVarUint32()
+	if err != nil {
+		return "", err
+	}
+	for ; length > 0; length -= 1 {
+		errCode, err := dec.UnpackUint64()
+		if err != nil {
+			return "", err
+		}
+		errMsg, err := dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+		abi.ErrorMessages = append(abi.ErrorMessages, ErrorMessage{
+			ErrorCode: errCode,
+			ErrorMsg:  errMsg,
+		})
+	}
+
+	length, err = dec.UnpackVarUint32()
+	if err != nil {
+		return "", err
+	}
+	for ; length > 0; length -= 1 {
+		a := AbiExtension{}
+		typ, err := dec.UnpackUint16()
+		if err != nil {
+			return "", err
+		}
+		a.Type = typ
+
+		ext, err := dec.UnpackBytes()
+		if err != nil {
+			return "", err
+		}
+		a.Extension = ext
+		abi.AbiExtensions = append(abi.AbiExtensions, a)
+	}
+
+	ret, err := json.Marshal(abi)
+	if err != nil {
+		return "", err
+	}
+	return string(ret), nil
 }
