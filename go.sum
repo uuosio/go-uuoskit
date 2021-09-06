@@ -1,12 +1,9 @@
+github.com/akamensky/base58 v0.0.0-20170920141933-92b0f56f531a h1:ndZwlx4H28xTc2WeU9tsGyv+y8xBp2HH31x0xi41c7M=
 github.com/akamensky/base58 v0.0.0-20170920141933-92b0f56f531a/go.mod h1:dl0ldiQPIl8Io2dgdNbAtqeuq0Os0SxIGCn8IVGH3zo=
-github.com/akamensky/base58 v0.0.0-20210829145138-ce8bf8802e8f h1:z8MkSJCUyTmW5YQlxsMLBlwA7GmjxC7L4ooicxqnhz8=
-github.com/akamensky/base58 v0.0.0-20210829145138-ce8bf8802e8f/go.mod h1:UdUwYgAXBiL+kLfcqxoQJYkHA/vl937/PbFhZM34aZs=
 github.com/iancoleman/orderedmap v0.2.0 h1:sq1N/TFpYH++aViPcaKjys3bDClUEU7s5B+z6jq8pNA=
 github.com/iancoleman/orderedmap v0.2.0/go.mod h1:N0Wam8K1arqPXNWjMo21EXnBPOPp36vB07FNRdD2geA=
-github.com/learnforpractice/go-secp256k1 v0.0.0-20210901084709-3cb7e44fa7f9 h1:XKcFtbPMgVU9bG7kJmwUZfQK9LseblGxp4L7bhD4NCU=
-github.com/learnforpractice/go-secp256k1 v0.0.0-20210901084709-3cb7e44fa7f9/go.mod h1:qNCn8gwHoQaEMaojB5Ju56FQXQ8HXzqWbi0QOhKZjaA=
-github.com/learnforpractice/go-secp256k1 v0.0.0-20210901145940-67c90f7ff2ad h1:RfSAdVNKXeRo0m4MGEHRbPtFPXyDt4IDOTHgs1SxTWI=
-github.com/learnforpractice/go-secp256k1 v0.0.0-20210901145940-67c90f7ff2ad/go.mod h1:qNCn8gwHoQaEMaojB5Ju56FQXQ8HXzqWbi0QOhKZjaA=
+github.com/uuosio/go-secp256k1 v0.0.0-20210906121707-77f3f76b477d h1:nHPoG8iYa5x0GFBhkje9ejz3aQRIxu3OCiNmSRaIVTU=
+github.com/uuosio/go-secp256k1 v0.0.0-20210906121707-77f3f76b477d/go.mod h1:5h97sPuPhyRQpMBROgcpOs/xLko1S8i/ExF/gTSW7+w=
 golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 h1:HWj/xjIHfjYU5nVXpTM0s39J9CbLn7Cc5a7IC5rwsMQ=
 golang.org/x/crypto v0.0.0-20210817164053-32db794688a5/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=

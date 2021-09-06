@@ -15,7 +15,7 @@ import (
 	"runtime"
 	"unsafe"
 
-	"github.com/learnforpractice/go-secp256k1/secp256k1"
+	"github.com/uuosio/go-secp256k1/secp256k1"
 )
 
 func renderData(data interface{}) *C.char {
