@@ -336,3 +336,22 @@ func crypto_get_public_key_(privateKey *C.char) *C.char {
 	pub := _privateKey.GetPublicKey()
 	return renderData(pub.String())
 }
+
+//export crypto_recover_key_
+func crypto_recover_key_(digest *C.char, signature *C.char) *C.char {
+	_digest, err := hex.DecodeString(C.GoString(digest))
+	if err != nil {
+		return renderError(err)
+	}
+
+	_signature, err := secp256k1.NewSignatureFromBase58(C.GoString(signature))
+	if err != nil {
+		return renderError(err)
+	}
+
+	pub, err := secp256k1.Recover(_digest, _signature)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(pub.String())
+}
