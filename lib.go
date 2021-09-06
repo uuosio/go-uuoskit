@@ -65,6 +65,22 @@ func wallet_get_public_keys_() *C.char {
 	return renderData(keys)
 }
 
+//export wallet_sign_digest_
+func wallet_sign_digest_(digest *C.char, pubKey *C.char) *C.char {
+	_pubKey := C.GoString(pubKey)
+	log.Println("++++++++wallet_sign_digest_:", C.GoString(digest))
+	_digest, err := hex.DecodeString(C.GoString(digest))
+	if err != nil {
+		return renderError(err)
+	}
+
+	sign, err := GetWallet().Sign(_digest, _pubKey)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(sign.String())
+}
+
 var gPackedTxs []*PackedTransaction
 
 func validateIndex(idx C.int64_t) error {
@@ -287,4 +303,36 @@ func abiserializer_unpack_abi_(abi *C.char, length C.int) *C.char {
 		return renderError(err)
 	}
 	return renderData(result)
+}
+
+//export crypto_sign_digest_
+func crypto_sign_digest_(digest *C.char, privateKey *C.char) *C.char {
+	log.Println(C.GoString(digest), C.GoString(privateKey))
+
+	_privateKey, err := secp256k1.NewPrivateKeyFromBase58(C.GoString(privateKey))
+	if err != nil {
+		return renderError(err)
+	}
+
+	_digest, err := hex.DecodeString(C.GoString(digest))
+	if err != nil {
+		return renderError(err)
+	}
+
+	result, err := _privateKey.Sign(_digest)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(result.String())
+}
+
+//export crypto_get_public_key_
+func crypto_get_public_key_(privateKey *C.char) *C.char {
+	_privateKey, err := secp256k1.NewPrivateKeyFromBase58(C.GoString(privateKey))
+	if err != nil {
+		return renderError(err)
+	}
+
+	pub := _privateKey.GetPublicKey()
+	return renderData(pub.String())
 }

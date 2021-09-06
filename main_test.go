@@ -343,6 +343,7 @@ func TestPackAbi(t *testing.T) {
 		panic(err)
 	}
 	t.Log(s)
+	// Output: any
 }
 
 func TestRpc(t *testing.T) {
@@ -356,4 +357,5 @@ func TestRpc(t *testing.T) {
 		panic(err)
 	}
 	t.Log(string(r))
+	// Output: any
 }
