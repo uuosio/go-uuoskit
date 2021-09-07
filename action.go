@@ -3,8 +3,8 @@ package main
 import "unsafe"
 
 type PermissionLevel struct {
-	Actor      Name
-	Permission Name
+	Actor      Name `json:"actor"`
+	Permission Name `json:"permission"`
 }
 
 func (t *PermissionLevel) Pack() []byte {
@@ -26,10 +26,10 @@ func (t *PermissionLevel) Size() int {
 }
 
 type Action struct {
-	Account       Name
-	Name          Name
-	Authorization []PermissionLevel
-	Data          []byte
+	Account       Name              `json:"account"`
+	Name          Name              `json:"name"`
+	Authorization []PermissionLevel `json:"authorization"`
+	Data          []byte            `json:"data"`
 }
 
 func NewAction(account Name, name Name, args ...interface{}) *Action {
@@ -37,7 +37,15 @@ func NewAction(account Name, name Name, args ...interface{}) *Action {
 	a.Account = account
 	a.Name = name
 	if len(args) > 0 {
-		enc := NewEncoder(64)
+		size := 0
+		for _, v := range args {
+			n, err := CalcPackedSize(v)
+			if err != nil {
+				panic(err.Error())
+			}
+			size += n
+		}
+		enc := NewEncoder(size)
 		for _, arg := range args {
 			enc.Pack(arg)
 		}
