@@ -47,17 +47,17 @@ type Transaction struct {
 	// unsigned_int    max_net_usage_words = 0UL; /// number of 8 byte words this transaction can serialize into after compressions
 	// uint8_t         max_cpu_usage_ms = 0UL; /// number of CPU usage units to bill transaction for
 	// unsigned_int    delay_sec = 0UL; /// number of seconds to delay transaction, default: 0
-	Expiration     uint32
-	RefBlockNum    uint16
-	RefBlockPrefix uint32
+	Expiration     uint32 `json:"expiration"`
+	RefBlockNum    uint16 `json:"ref_block_num"`
+	RefBlockPrefix uint32 `json:"ref_block_prefix"`
 	//[VLQ or Base-128 encoding](https://en.wikipedia.org/wiki/Variable-length_quantity)
 	//unsigned_int vaint (eosio.cdt/libraries/eosiolib/core/eosio/varint.hpp)
-	MaxNetUsageWords   uint32
-	MaxCpuUsageMs      uint8
-	DelaySec           uint32 //unsigned_int
-	ContextFreeActions []Action
-	Actions            []Action
-	Extention          []TransactionExtension
+	MaxNetUsageWords   uint32                 `json:"max_net_usage_words"`
+	MaxCpuUsageMs      uint8                  `json:"max_cpu_usage_ms"`
+	DelaySec           uint32                 //unsigned_int
+	ContextFreeActions []Action               `json:"context_free_actions"`
+	Actions            []Action               `json:"actions"`
+	Extention          []TransactionExtension `json:"extensions"`
 }
 
 // '{"signatures":
