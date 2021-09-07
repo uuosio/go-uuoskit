@@ -7,10 +7,6 @@ import (
 	"unsafe"
 )
 
-type Uint128 [16]byte
-type Float128 [16]byte
-type Uint256 [32]byte
-
 func PackVarInt32(v int32) []byte {
 	i := 0
 	buf := [8]byte{}
