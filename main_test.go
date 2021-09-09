@@ -359,3 +359,11 @@ func TestRpc(t *testing.T) {
 	t.Log(string(r))
 	// Output: any
 }
+
+func TestParseAsset(t *testing.T) {
+	v, ok := ParseAsset("0.0100 EOS")
+	if !ok {
+		panic("bad value")
+	}
+	t.Log(v)
+}

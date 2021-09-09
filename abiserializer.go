@@ -200,7 +200,12 @@ func (t *ABISerializer) PackActionArgs(contractName, actionName string, args []b
 	if abiStruct == nil {
 		return nil, fmt.Errorf("abi struct not found for %s::%s", contractName, actionName)
 	}
-	t.PackAbiStruct(contractName, abiStruct, m)
+
+	err = t.PackAbiStruct(contractName, abiStruct, m)
+	if err != nil {
+		return nil, err
+	}
+
 	bs := t.enc.buf
 	t.enc.Reset()
 	ret := make([]byte, len(bs))
@@ -257,7 +262,12 @@ func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) (
 	if abiStruct == nil {
 		return nil, fmt.Errorf("abi struct not found for %s::%s", contractName, abiType)
 	}
-	t.PackAbiStruct(contractName, abiStruct, m)
+
+	err = t.PackAbiStruct(contractName, abiStruct, m)
+	if err != nil {
+		return nil, err
+	}
+
 	bs := t.enc.Bytes()
 	t.enc.Reset()
 	ret := make([]byte, len(bs))
@@ -647,11 +657,11 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	case "asset":
 		v, ok := StripString(v)
 		if !ok {
-			return fmt.Errorf("invalid asset value: %s", v)
+			return fmt.Errorf("StripString: Invalid asset value: %s", v)
 		}
 		r, ok := ParseAsset(v)
 		if !ok {
-			return fmt.Errorf("invalid asset value: %s", v)
+			return fmt.Errorf("ParseAsset: Invalid asset value: %s", v)
 		}
 		t.enc.WriteBytes(r)
 	case "extended_asset":
@@ -902,6 +912,7 @@ func ParseAsset(v string) ([]byte, bool) {
 		return nil, false
 	}
 	_, err := strconv.ParseFloat(amount, 64)
+
 	if err != nil {
 		return nil, false
 	}
@@ -910,27 +921,33 @@ func ParseAsset(v string) ([]byte, bool) {
 		return nil, false
 	}
 
-	n, err := strconv.Atoi(_amount[1])
-	if err != nil {
-		return nil, false
-	}
-	if n != 0 {
-		return nil, false
-	}
+	// n, err := strconv.Atoi(_amount[1])
+	// if err != nil {
+	// 	return nil, false
+	// }
+	// log.Println("+++++ok here")
+	// if n != 0 {
+	// 	return nil, false
+	// }
 	precision := len(_amount[1])
-	__amount, err := strconv.Atoi(_amount[0])
-	if err != nil {
-		return nil, false
-	}
-	if __amount < 0 || __amount > math.MaxInt64 {
-		return nil, false
-	}
+	// __amount, err := strconv.Atoi(_amount[0])
+	// if err != nil {
+	// 	return nil, false
+	// }
+	// if __amount < 0 || __amount > math.MaxInt64 {
+	// 	return nil, false
+	// }
 
 	amount = strings.Replace(amount, ".", "", 1)
 	nAmount, err := strconv.ParseInt(amount, 10, 64)
 	if err != nil {
 		return nil, false
 	}
+
+	if nAmount < 0 || nAmount > math.MaxInt64 {
+		return nil, false
+	}
+
 	enc := NewEncoder(8)
 	enc.PackInt64(nAmount)
 
@@ -959,6 +976,7 @@ func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct,
 		typ := v.Type
 		name := v.Name
 		abiValue, ok := m[name]
+		log.Printf("++++++++%s %s\n", name, typ)
 		if !ok {
 			return fmt.Errorf("missing field %s", name)
 		}
