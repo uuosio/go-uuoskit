@@ -341,6 +341,9 @@ func (t *PackedTransaction) SignByPrivateKey(privKey string, chainId string) err
 }
 
 func (t *PackedTransaction) String() string {
+	if t.PackedTx == nil {
+		t.PackedTx = t.tx.Pack()
+	}
 	packed, _ := json.Marshal(t)
 	return string(packed)
 }
