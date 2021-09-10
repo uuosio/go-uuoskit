@@ -163,6 +163,9 @@ func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data 
 		action.AddPermission(NewName(k), NewName(v))
 	}
 	gPackedTxs[idx].tx.AddAction(action)
+
+	//reset PackedTx
+	gPackedTxs[idx].PackedTx = nil
 	return renderData("ok")
 }
 
