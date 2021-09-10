@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"compress/zlib"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -52,33 +54,22 @@ type Transaction struct {
 	RefBlockPrefix uint32 `json:"ref_block_prefix"`
 	//[VLQ or Base-128 encoding](https://en.wikipedia.org/wiki/Variable-length_quantity)
 	//unsigned_int vaint (eosio.cdt/libraries/eosiolib/core/eosio/varint.hpp)
-	MaxNetUsageWords   uint32                 `json:"max_net_usage_words"`
+	MaxNetUsageWords   VarUint32              `json:"max_net_usage_words"`
 	MaxCpuUsageMs      uint8                  `json:"max_cpu_usage_ms"`
-	DelaySec           uint32                 //unsigned_int
+	DelaySec           VarUint32              `json:"delay_sec"`
 	ContextFreeActions []Action               `json:"context_free_actions"`
 	Actions            []Action               `json:"actions"`
 	Extention          []TransactionExtension `json:"extensions"`
 }
 
-// '{"signatures":
-// ["SIG_K1_KbSF8BCNVA95KzR1qLmdn4VnxRoLVFQ1fZ8VV5gVdW1hLfGBdcwEc93hF7FBkWZip1tq2Ps27UZxceaR3hYwAjKL7j59q8"],
-// "compression":"none",
-// "packed_context_free_data":"",
-// "packed_trx":"4bc52d61a9dd120d4ade000000000100a6823403ea3055000000572d3ccdcd0110428a97721aa36a00000000a8ed32323b10428a97721aa36a0000000000000e3d102700000000000004454f53000000001a7472616e736665722066726f6d20616c69636520746f20626f6200"}'
-
-type TxBytes []byte
-
-func (m TxBytes) MarshalJSON() ([]byte, error) {
-	return json.Marshal(hex.EncodeToString(m))
-}
-
 type PackedTransaction struct {
 	chainId       [32]byte
 	tx            *Transaction
+	compressed    bool
 	Signatures    []string `json:"signatures"`
 	Compression   string   `json:"compression"`
-	PackedContext TxBytes  `json:"packed_context_free_data"`
-	PackedTx      TxBytes  `json:"packed_trx"`
+	PackedContext Bytes    `json:"packed_context_free_data"`
+	PackedTx      Bytes    `json:"packed_trx"`
 }
 
 func NewTransaction(expiration int) *Transaction {
@@ -86,9 +77,13 @@ func NewTransaction(expiration int) *Transaction {
 	t.Expiration = uint32(expiration)
 	// t.RefBlockNum = uint16(taposBlockNum)
 	// t.RefBlockPrefix = uint32(taposBlockPrefix)
-	t.MaxNetUsageWords = uint32(0)
+	t.MaxNetUsageWords = VarUint32(0)
 	t.MaxCpuUsageMs = uint8(0)
 	// t.DelaySec = uint32(delaySec)
+	t.ContextFreeActions = []Action{}
+	t.Actions = []Action{}
+	t.Extention = []TransactionExtension{}
+
 	return t
 }
 
@@ -135,9 +130,9 @@ func (t *Transaction) Pack() []byte {
 	enc.Pack(t.Expiration)
 	enc.Pack(t.RefBlockNum)
 	enc.Pack(t.RefBlockPrefix)
-	enc.PackVarUint32(t.MaxNetUsageWords)
+	enc.PackVarUint32(uint32(t.MaxNetUsageWords))
 	enc.PackUint8(t.MaxCpuUsageMs)
-	enc.PackVarUint32(t.DelaySec)
+	enc.PackVarUint32(uint32(t.DelaySec))
 
 	enc.PackLength(len(t.ContextFreeActions))
 	for _, action := range t.ContextFreeActions {
@@ -264,6 +259,7 @@ func NewPackedtransaction(tx *Transaction) *PackedTransaction {
 	packed.Compression = "none"
 	packed.PackedTx = nil
 	packed.tx = tx
+	packed.Signatures = []string{}
 	return packed
 }
 
@@ -340,10 +336,32 @@ func (t *PackedTransaction) SignByPrivateKey(privKey string, chainId string) err
 	return t.sign(priv, _chainId)
 }
 
-func (t *PackedTransaction) String() string {
+func (t *PackedTransaction) Marshal() string {
+	r, _ := json.Marshal(t.tx)
+	return string(r)
+}
+
+func (t *PackedTransaction) Pack(compress bool) string {
+	if compress {
+		t.Compression = "zlib"
+	} else {
+		t.Compression = "none"
+	}
+
 	if t.PackedTx == nil {
 		t.PackedTx = t.tx.Pack()
 	}
+
+	if compress && !t.compressed {
+		//TODO: compress PackedTx with zlib
+		var b bytes.Buffer
+		w := zlib.NewWriter(&b)
+		w.Write(t.PackedTx[:])
+		w.Close()
+		t.PackedTx = b.Bytes()
+		t.compressed = true
+	}
+
 	packed, _ := json.Marshal(t)
 	return string(packed)
 }
