@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"compress/zlib"
 	"encoding/hex"
 	"encoding/json"
 	"log"
@@ -257,13 +259,13 @@ func TestTx(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	t.Log(packedTx.String())
+	t.Log(packedTx.Pack(false))
 
 	err = packedTx.Sign(pub)
 	if err != nil {
 		panic(err)
 	}
-	t.Log(packedTx.String())
+	t.Log(packedTx.Pack(false))
 
 	r, err := rpc.PushTransaction(packedTx)
 	if err != nil {
@@ -366,4 +368,42 @@ func TestParseAsset(t *testing.T) {
 		panic("bad value")
 	}
 	t.Log(v)
+}
+
+func TestTxMarshal(t *testing.T) {
+	tx := NewTransaction(1122)
+
+	a := NewAction(NewName("hello"), NewName("sayhello"),
+		[]PermissionLevel{{NewName("hello"), NewName("active")}},
+		"hello")
+	tx.AddAction(a)
+
+	r, err := json.Marshal(tx)
+	if err != nil {
+		panic(err)
+	}
+	t.Log(string(r))
+
+	packedTx := NewPackedtransaction(tx)
+	t.Log(packedTx.Pack(false))
+
+}
+
+func TestZlib(t *testing.T) {
+	var b bytes.Buffer
+	w := zlib.NewWriter(&b)
+	w.Write([]byte("hello"))
+	w.Close()
+	t.Logf("++++++%x", b.Bytes())
+
+	r, err := zlib.NewReader(&b)
+	if err != nil {
+		panic(err)
+	}
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	t.Log(string(buf[:n]))
 }
