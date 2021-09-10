@@ -184,12 +184,27 @@ func transaction_sign_(idx C.int64_t, pub *C.char) *C.char {
 }
 
 //export transaction_pack_
-func transaction_pack_(idx C.int64_t) *C.char {
+func transaction_pack_(idx C.int64_t, compress C.int) *C.char {
 	if err := validateIndex(idx); err != nil {
 		return renderError(err)
 	}
 
-	result := gPackedTxs[idx].String()
+	var result string
+	if compress != 0 {
+		result = gPackedTxs[idx].Pack(true)
+	} else {
+		result = gPackedTxs[idx].Pack(false)
+	}
+	return renderData(result)
+}
+
+//export transaction_marshal_
+func transaction_marshal_(idx C.int64_t) *C.char {
+	if err := validateIndex(idx); err != nil {
+		return renderError(err)
+	}
+
+	result := gPackedTxs[idx].Marshal()
 	return renderData(result)
 }
 

@@ -2,7 +2,15 @@ package main
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
 )
+
+type Bytes []byte
+
+func (t Bytes) MarshalJSON() ([]byte, error) {
+	return json.Marshal(hex.EncodeToString([]byte(t)))
+}
 
 type VarInt32 int32
 
@@ -34,6 +42,10 @@ func (t *VarUint32) Unpack(data []byte) (int, error) {
 
 func (t *VarUint32) Size() int {
 	return PackedVarUint32Length(uint32(*t))
+}
+
+func (t *VarUint32) MarshalJSON() ([]byte, error) {
+	return json.Marshal(uint32(*t))
 }
 
 type Int128 [16]byte

@@ -268,10 +268,10 @@ func (dec *Decoder) UnpackVarInt32() (int32, error) {
 	return v, nil
 }
 
-func (dec *Decoder) UnpackVarUint32() (uint32, error) {
+func (dec *Decoder) UnpackVarUint32() (VarUint32, error) {
 	v, n := UnpackVarUint32(dec.buf[dec.pos:])
 	dec.incPos(n)
-	return v, nil
+	return VarUint32(v), nil
 }
 
 func (dec *Decoder) UnpackInt16() (int16, error) {

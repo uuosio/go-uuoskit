@@ -1,5 +1,7 @@
 package main
 
+import "encoding/json"
+
 func char_to_symbol(c byte) byte {
 	if c >= 'a' && c <= 'z' {
 		return (c - 'a') + 6
@@ -69,6 +71,10 @@ func N2S(value uint64) string {
 
 type Name struct {
 	N uint64
+}
+
+func (a *Name) MarshalJSON() ([]byte, error) {
+	return json.Marshal(a.String())
 }
 
 func NewName(s string) Name {

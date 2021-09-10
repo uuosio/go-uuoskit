@@ -29,7 +29,7 @@ type Action struct {
 	Account       Name              `json:"account"`
 	Name          Name              `json:"name"`
 	Authorization []PermissionLevel `json:"authorization"`
-	Data          []byte            `json:"data"`
+	Data          Bytes             `json:"data"`
 }
 
 func NewAction(account Name, name Name, args ...interface{}) *Action {
@@ -91,7 +91,7 @@ func (a *Action) Pack() []byte {
 	for _, v := range a.Authorization {
 		enc.Pack(&v)
 	}
-	enc.Pack(a.Data)
+	enc.Pack(([]byte)(a.Data))
 	return enc.GetBytes()
 	// buf := []byte{}
 	// buf = append(buf, PackUint64(a.Account)...)
