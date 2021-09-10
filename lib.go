@@ -162,10 +162,11 @@ func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data 
 	for k, v := range perms {
 		action.AddPermission(NewName(k), NewName(v))
 	}
-	gPackedTxs[idx].tx.AddAction(action)
 
-	//reset PackedTx
-	gPackedTxs[idx].PackedTx = nil
+	err = gPackedTxs[idx].AddAction(action)
+	if err != nil {
+		return renderError(err)
+	}
 	return renderData("ok")
 }
 

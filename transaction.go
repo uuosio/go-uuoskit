@@ -273,6 +273,14 @@ func (t *PackedTransaction) SetChainId(chainId string) error {
 	return nil
 }
 
+func (t *PackedTransaction) AddAction(a *Action) error {
+	if t.PackedTx != nil {
+		return errors.New("can not add new action after pack or sign")
+	}
+	t.tx.AddAction(a)
+	return nil
+}
+
 func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId []byte) error {
 	if t.PackedTx == nil {
 		t.PackedTx = t.tx.Pack()
