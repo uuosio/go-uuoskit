@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -343,7 +342,7 @@ func (t *ABISerializer) PackAbiValue(typ string, value AbiValue) error {
 	// }
 
 	v := value.value.(string)
-	log.Println("++++++++++v:", v)
+	// log.Println("++++++++++v:", v)
 	return t.ParseAbiStringValue(typ, v)
 }
 
@@ -405,7 +404,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		t.enc.PackUint16(uint16(n))
 		break
 	case "int32":
-		log.Println("++++++++++int32:", v)
+		// log.Println("++++++++++int32:", v)
 		n, err := StringToInt(v)
 		if err != nil {
 			return err
@@ -976,7 +975,7 @@ func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct,
 		typ := v.Type
 		name := v.Name
 		abiValue, ok := m[name]
-		log.Printf("++++++++%s %s\n", name, typ)
+		// log.Printf("++++++++%s %s\n", name, typ)
 		if !ok {
 			return fmt.Errorf("missing field %s", name)
 		}
@@ -1196,7 +1195,6 @@ func (t *ABISerializer) PackABI(strABI string) ([]byte, error) {
 		t := &abi.Tables[i]
 		name := NewName(t.Name)
 		enc.PackName(name)
-		enc.PackString(t.Type)
 		enc.PackString(t.IndexType)
 		enc.PackVarUint32(uint32(len(t.KeyTypes)))
 		for j := range t.KeyNames {
@@ -1206,6 +1204,7 @@ func (t *ABISerializer) PackABI(strABI string) ([]byte, error) {
 		for j := range t.KeyTypes {
 			enc.PackString(t.KeyTypes[j])
 		}
+		enc.PackString(t.Type)
 	}
 
 	enc.PackVarUint32(uint32(len(abi.RicardianClauses)))
@@ -1326,10 +1325,6 @@ func (t *ABISerializer) UnpackABI(rawAbi []byte) (string, error) {
 			return "", err
 		}
 		t.Name = name.String()
-		t.Type, err = dec.UnpackString()
-		if err != nil {
-			return "", err
-		}
 		t.IndexType, err = dec.UnpackString()
 		if err != nil {
 			return "", err
@@ -1355,6 +1350,10 @@ func (t *ABISerializer) UnpackABI(rawAbi []byte) (string, error) {
 				return "", err
 			}
 			t.KeyTypes = append(t.KeyTypes, s)
+		}
+		t.Type, err = dec.UnpackString()
+		if err != nil {
+			return "", err
 		}
 		abi.Tables = append(abi.Tables, *t)
 	}
