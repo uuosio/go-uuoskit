@@ -239,6 +239,7 @@ func TestTx(t *testing.T) {
 	t.Log("+++++++pubKey:", pubKey.String())
 	action := NewAction(NewName("eosio.token"),
 		NewName("transfer"),
+		[]PermissionLevel{{NewName("helloworld11"), NewName("active")}},
 		NewName("helloworld11"),
 		NewName("eosio.token"),
 		NewAsset(1000, NewSymbol("EOS", 4)),
@@ -253,7 +254,7 @@ func TestTx(t *testing.T) {
 	}
 	t.Log("++++++sign:", sign)
 
-	packedTx := NewPackedtransaction(tx)
+	packedTx := NewPackedTransaction(tx)
 	packedTx.SetChainId(chainId)
 	err = packedTx.SignByPrivateKey(priv, chainId)
 	if err != nil {
@@ -384,7 +385,7 @@ func TestTxMarshal(t *testing.T) {
 	}
 	t.Log(string(r))
 
-	packedTx := NewPackedtransaction(tx)
+	packedTx := NewPackedTransaction(tx)
 	t.Log(packedTx.Pack(false))
 
 }

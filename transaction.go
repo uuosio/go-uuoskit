@@ -231,10 +231,20 @@ func (t *Transaction) Unpack(data []byte) (int, error) {
 }
 
 func (t *Transaction) Sign(privKey string, chainId string) (string, error) {
-	data := t.Pack()
+	_chainId, err := hex.DecodeString(chainId)
+	if err != nil {
+		return "", err
+	}
+	if len(_chainId) != 32 {
+		return "", errors.New("chainId must be 32 bytes")
+	}
 
 	hash := sha256.New()
-	hash.Write(data)
+	hash.Write(_chainId)
+	hash.Write(t.Pack())
+	//TODO: hash context_free_data
+	cfdHash := [32]byte{}
+	hash.Write(cfdHash[:])
 	digest := hash.Sum(nil)
 
 	priv, err := secp256k1.NewPrivateKeyFromBase58(privKey)
@@ -245,16 +255,10 @@ func (t *Transaction) Sign(privKey string, chainId string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// type PackedTransaction struct {
-	// 	Signatures    []string `json:"signatures"`
-	// 	Compression   string   `json:"compression"`
-	// 	PackedContext []byte   `json:"packed_context_free_data"`
-	// 	PackedTx     []byte   `json:"packed_trx"`
-	// }
 	return sign.String(), nil
 }
 
-func NewPackedtransaction(tx *Transaction) *PackedTransaction {
+func NewPackedTransaction(tx *Transaction) *PackedTransaction {
 	packed := &PackedTransaction{}
 	packed.Compression = "none"
 	packed.PackedTx = nil
@@ -282,6 +286,10 @@ func (t *PackedTransaction) AddAction(a *Action) error {
 }
 
 func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId []byte) error {
+	if t.compressed {
+		return errors.New("can not sign after pack")
+	}
+
 	if t.PackedTx == nil {
 		t.PackedTx = t.tx.Pack()
 	}

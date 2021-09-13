@@ -100,7 +100,7 @@ func transaction_new_(expiration C.int64_t, refBlock *C.char, chainId *C.char) C
 	tx := NewTransaction(int(expiration))
 	tx.SetReferenceBlock(C.GoString(refBlock))
 
-	packedTx := NewPackedtransaction(tx)
+	packedTx := NewPackedTransaction(tx)
 	packedTx.SetChainId(C.GoString(chainId))
 	if gPackedTxs == nil {
 		//element at 0 not used
