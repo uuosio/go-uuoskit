@@ -1233,6 +1233,13 @@ func (t *ABISerializer) PackABI(strABI string) ([]byte, error) {
 func (t *ABISerializer) UnpackABI(rawAbi []byte) (string, error) {
 	dec := NewDecoder(rawAbi)
 	abi := &ABI{}
+	abi.Types = []ABIType{}
+	abi.Structs = []ABIStruct{}
+	abi.Actions = []ABIAction{}
+	abi.Tables = []ABITable{}
+	abi.RicardianClauses = []ClausePair{}
+	abi.ErrorMessages = []ErrorMessage{}
+	abi.AbiExtensions = []AbiExtension{}
 
 	version, err := dec.UnpackString()
 	if err != nil {
