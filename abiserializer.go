@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/iancoleman/orderedmap"
-	"github.com/uuosio/go-secp256k1/secp256k1"
+	secp256k1 "github.com/uuosio/go-secp256k1"
 )
 
 type ABITable struct {

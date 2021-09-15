@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 
-	"github.com/uuosio/go-secp256k1/secp256k1"
+	secp256k1 "github.com/uuosio/go-secp256k1"
 )
 
 type Wallet struct {

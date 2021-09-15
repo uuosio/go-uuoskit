@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/iancoleman/orderedmap"
-	"github.com/uuosio/go-secp256k1/secp256k1"
+	secp256k1 "github.com/uuosio/go-secp256k1"
 )
 
 func TestOrderedMap(t *testing.T) {
@@ -407,4 +407,9 @@ func TestZlib(t *testing.T) {
 	// 	panic(err)
 	// }
 	t.Log(string(buf[:n]))
+}
+
+func TestCreateKey(t *testing.T) {
+	secp256k1.Init()
+	t.Log(CreateKey())
 }

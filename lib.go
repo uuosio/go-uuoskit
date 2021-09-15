@@ -8,14 +8,17 @@ package main
 import "C"
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"math/big"
 	"runtime"
 	"unsafe"
 
-	"github.com/uuosio/go-secp256k1/secp256k1"
+	secp256k1 "github.com/uuosio/go-secp256k1"
 )
 
 func renderData(data interface{}) *C.char {
@@ -373,4 +376,49 @@ func crypto_recover_key_(digest *C.char, signature *C.char) *C.char {
 		return renderError(err)
 	}
 	return renderData(pub.String())
+}
+
+//export crypto_create_key_
+func crypto_create_key_() *C.char {
+	ret := CreateKey()
+	return renderData(ret)
+}
+
+func CreateKey() map[string]string {
+	priv := genPrivKey(rand.Reader)
+	_priv := secp256k1.NewPrivateKey(priv)
+
+	ret := make(map[string]string)
+	ret["private"] = _priv.String()
+	ret["public"] = _priv.GetPublicKey().String()
+	return ret
+}
+
+//https://github.com/tendermint/tendermint/blob/de2cffe7a44e99bf81a62c542d50ccbf28dc852a/crypto/secp256k1/secp256k1.go#L73
+// genPrivKey generates a new secp256k1 private key using the provided reader.
+func genPrivKey(rand io.Reader) []byte {
+	var privKeyBytes [32]byte
+	d := new(big.Int)
+
+	for {
+		privKeyBytes = [32]byte{}
+		_, err := io.ReadFull(rand, privKeyBytes[:])
+		if err != nil {
+			panic(err)
+		}
+
+		//"github.com/btcsuite/btcd/btcec"
+		//btcec.S256().N
+		N := big.NewInt(0).SetBytes([]byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 186, 174, 220, 230, 175, 72, 160, 59, 191, 210, 94, 140, 208, 54, 65, 65})
+		// log.Println(btcec.S256().N.Bytes())
+		d.SetBytes(privKeyBytes[:])
+		// break if we found a valid point (i.e. > 0 and < N == curverOrder)
+		// isValidFieldElement := 0 < d.Sign() && d.Cmp(btcec.S256().N) < 0
+		isValidFieldElement := 0 < d.Sign() && d.Cmp(N) < 0
+		if isValidFieldElement {
+			break
+		}
+	}
+
+	return privKeyBytes[:]
 }
