@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"unsafe"
 )
@@ -377,6 +378,10 @@ func (dec *Decoder) Unpack(i interface{}) (n int, err error) {
 		n = dec.Pos()
 		*v, err = dec.UnpackBytes()
 		return dec.Pos() - n, err
+	case *Bytes:
+		n = dec.Pos()
+		*v, err = dec.UnpackBytes()
+		return dec.Pos() - n, err
 	case *bool:
 		n, err := dec.ReadBool()
 		if err != nil {
@@ -463,10 +468,7 @@ func (dec *Decoder) Unpack(i interface{}) (n int, err error) {
 	// 	v.N = n
 	// 	return 8, nil
 	default:
-		// if DEBUG {
-		// 	panic(fmt.Sprintf("unknown Unpack type <%v>", i))
-		// }
-		panic("unknown Unpack type")
+		panic(fmt.Sprintf("unknown Unpack type %v %T", v, v))
 	}
 	return 0, err
 }
