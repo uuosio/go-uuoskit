@@ -297,7 +297,7 @@ func (t *PackedTransaction) AddAction(a *Action) error {
 	return nil
 }
 
-func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId []byte) (string, error) {
+func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey) (string, error) {
 	if t.compressed {
 		return "", errors.New("can not sign after pack")
 	}
@@ -307,7 +307,7 @@ func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId []byte) (st
 	}
 
 	hash := sha256.New()
-	hash.Write(chainId)
+	hash.Write(t.chainId[:])
 	hash.Write(t.PackedTx)
 	//TODO: hash context_free_data
 	cfdHash := [32]byte{}
@@ -349,20 +349,16 @@ func (t *PackedTransaction) Sign(pubKey string) (string, error) {
 		return "", errors.New("chainId is empty")
 	}
 
-	return t.sign(priv, t.chainId[:])
+	return t.sign(priv)
 }
 
-func (t *PackedTransaction) SignByPrivateKey(privKey string, chainId string) (string, error) {
+func (t *PackedTransaction) SignByPrivateKey(privKey string) (string, error) {
 	priv, err := secp256k1.NewPrivateKeyFromBase58(privKey)
 	if err != nil {
 		return "", err
 	}
 
-	_chainId, err := DecodeHash256(chainId)
-	if err != nil {
-		return "", err
-	}
-	return t.sign(priv, _chainId)
+	return t.sign(priv)
 }
 
 func (t *PackedTransaction) Marshal() string {

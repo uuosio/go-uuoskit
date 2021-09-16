@@ -129,12 +129,13 @@ func transaction_new_(expiration C.int64_t, refBlock *C.char, chainId *C.char) C
 }
 
 //export transaction_from_json_
-func transaction_from_json_(tx *C.char) *C.char {
+func transaction_from_json_(tx *C.char, chainId *C.char) *C.char {
 	_tx := C.GoString(tx)
 	packedTx, err := NewPackedTransactionFromString(_tx)
 	if err != nil {
 		return renderError(err)
 	}
+	packedTx.SetChainId(C.GoString(chainId))
 	i := addPackedTx(packedTx)
 	return renderData(i)
 }
@@ -147,6 +148,19 @@ func transaction_free_(_index C.int64_t) {
 	}
 	gPackedTxs[int(index)] = nil
 	return
+}
+
+//export transaction_set_chain_id_
+func transaction_set_chain_id_(_index C.int64_t, chainId *C.char) *C.char {
+	index := int(_index)
+	if index < 0 || index >= len(gPackedTxs) {
+		return renderError(fmt.Errorf("invalid index"))
+	}
+	err := gPackedTxs[int(index)].SetChainId(C.GoString(chainId))
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData("ok")
 }
 
 //export transaction_add_action_
@@ -202,6 +216,20 @@ func transaction_sign_(idx C.int64_t, pub *C.char) *C.char {
 	return renderData(sign)
 }
 
+//export transaction_sign_by_private_key_
+func transaction_sign_by_private_key_(idx C.int64_t, priv *C.char) *C.char {
+	//	func (t *PackedTransaction) SignByPrivateKey(privKey string, chainId string) (string, error) {
+	if err := validateIndex(idx); err != nil {
+		return renderError(err)
+	}
+
+	sign, err := gPackedTxs[idx].SignByPrivateKey(C.GoString(priv))
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(sign)
+}
+
 //export transaction_pack_
 func transaction_pack_(idx C.int64_t, compress C.int) *C.char {
 	if err := validateIndex(idx); err != nil {
@@ -225,6 +253,23 @@ func transaction_marshal_(idx C.int64_t) *C.char {
 
 	result := gPackedTxs[idx].Marshal()
 	return renderData(result)
+}
+
+//func (t *Transaction) Unpack(data []byte) (int, error) {
+//export transaction_unpack_
+func transaction_unpack_(data *C.char) *C.char {
+	t := Transaction{}
+	_data, err := hex.DecodeString(C.GoString(data))
+	if err != nil {
+		return renderError(err)
+	}
+
+	t.Unpack([]byte(_data))
+	js, err := json.Marshal(t)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(string(js))
 }
 
 //export abiserializer_set_contract_abi_
