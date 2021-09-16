@@ -400,6 +400,11 @@ func genPrivKey(rand io.Reader) []byte {
 	var privKeyBytes [32]byte
 	d := new(big.Int)
 
+	//"github.com/btcsuite/btcd/btcec"
+	//btcec.S256().N
+	//log.Println(btcec.S256().N.Bytes())
+	N := big.NewInt(0).SetBytes([]byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 186, 174, 220, 230, 175, 72, 160, 59, 191, 210, 94, 140, 208, 54, 65, 65})
+
 	for {
 		privKeyBytes = [32]byte{}
 		_, err := io.ReadFull(rand, privKeyBytes[:])
@@ -407,10 +412,6 @@ func genPrivKey(rand io.Reader) []byte {
 			panic(err)
 		}
 
-		//"github.com/btcsuite/btcd/btcec"
-		//btcec.S256().N
-		N := big.NewInt(0).SetBytes([]byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 254, 186, 174, 220, 230, 175, 72, 160, 59, 191, 210, 94, 140, 208, 54, 65, 65})
-		// log.Println(btcec.S256().N.Bytes())
 		d.SetBytes(privKeyBytes[:])
 		// break if we found a valid point (i.e. > 0 and < N == curverOrder)
 		// isValidFieldElement := 0 < d.Sign() && d.Cmp(btcec.S256().N) < 0
