@@ -267,6 +267,18 @@ func NewPackedTransaction(tx *Transaction) *PackedTransaction {
 	return packed
 }
 
+func NewPackedTransactionFromString(tx string) (*PackedTransaction, error) {
+	packed := &PackedTransaction{}
+	packed.Compression = "none"
+	packed.PackedTx = nil
+	packed.tx = &Transaction{}
+	if err := json.Unmarshal([]byte(tx), packed.tx); err != nil {
+		return nil, err
+	}
+	packed.Signatures = []string{}
+	return packed, nil
+}
+
 //SetChainId
 func (t *PackedTransaction) SetChainId(chainId string) error {
 	id, err := DecodeHash256(chainId)
@@ -285,9 +297,9 @@ func (t *PackedTransaction) AddAction(a *Action) error {
 	return nil
 }
 
-func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId []byte) error {
+func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId []byte) (string, error) {
 	if t.compressed {
-		return errors.New("can not sign after pack")
+		return "", errors.New("can not sign after pack")
 	}
 
 	if t.PackedTx == nil {
@@ -304,25 +316,26 @@ func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey, chainId []byte) err
 
 	sign, err := priv.Sign(digest)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	newSign := sign.String()
 	for i := range t.Signatures {
 		sig := t.Signatures[i]
 		if sig == newSign {
-			return nil
+			return "", nil
 		}
 	}
 
-	t.Signatures = append(t.Signatures, sign.String())
-	return nil
+	s := sign.String()
+	t.Signatures = append(t.Signatures, s)
+	return s, nil
 }
 
-func (t *PackedTransaction) Sign(pubKey string) error {
+func (t *PackedTransaction) Sign(pubKey string) (string, error) {
 	priv, err := GetWallet().GetPrivateKey(pubKey)
 	if err != nil {
-		return err
+		return "", err
 	}
 	empty := false
 	for i := 0; i < 32; i++ {
@@ -333,21 +346,21 @@ func (t *PackedTransaction) Sign(pubKey string) error {
 	}
 
 	if empty {
-		return errors.New("chainId is empty")
+		return "", errors.New("chainId is empty")
 	}
 
 	return t.sign(priv, t.chainId[:])
 }
 
-func (t *PackedTransaction) SignByPrivateKey(privKey string, chainId string) error {
+func (t *PackedTransaction) SignByPrivateKey(privKey string, chainId string) (string, error) {
 	priv, err := secp256k1.NewPrivateKeyFromBase58(privKey)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	_chainId, err := DecodeHash256(chainId)
 	if err != nil {
-		return err
+		return "", err
 	}
 	return t.sign(priv, _chainId)
 }

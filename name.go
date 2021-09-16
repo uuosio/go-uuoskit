@@ -1,6 +1,9 @@
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 func char_to_symbol(c byte) byte {
 	if c >= 'a' && c <= 'z' {
@@ -75,6 +78,15 @@ type Name struct {
 
 func (a *Name) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.String())
+}
+
+func (a *Name) UnmarshalJSON(b []byte) error {
+	n, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	a.N = S2N(n)
+	return nil
 }
 
 func NewName(s string) Name {

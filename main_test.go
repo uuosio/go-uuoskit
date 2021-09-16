@@ -256,13 +256,15 @@ func TestTx(t *testing.T) {
 
 	packedTx := NewPackedTransaction(tx)
 	packedTx.SetChainId(chainId)
-	err = packedTx.SignByPrivateKey(priv, chainId)
+	sign, err = packedTx.SignByPrivateKey(priv, chainId)
 	if err != nil {
 		panic(err)
 	}
+	log.Println(sign)
+
 	t.Log(packedTx.Pack(false))
 
-	err = packedTx.Sign(pub)
+	sign, err = packedTx.Sign(pub)
 	if err != nil {
 		panic(err)
 	}

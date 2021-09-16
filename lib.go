@@ -98,15 +98,8 @@ func validateIndex(idx C.int64_t) error {
 	return nil
 }
 
-//export transaction_new_
-func transaction_new_(expiration C.int64_t, refBlock *C.char, chainId *C.char) C.int64_t {
-	tx := NewTransaction(int(expiration))
-	tx.SetReferenceBlock(C.GoString(refBlock))
-
-	packedTx := NewPackedTransaction(tx)
-	packedTx.SetChainId(C.GoString(chainId))
+func addPackedTx(packedTx *PackedTransaction) C.int64_t {
 	if gPackedTxs == nil {
-		//element at 0 not used
 		gPackedTxs = make([]*PackedTransaction, 0, 10)
 	}
 
@@ -122,6 +115,28 @@ func transaction_new_(expiration C.int64_t, refBlock *C.char, chainId *C.char) C
 	}
 	gPackedTxs = append(gPackedTxs, packedTx)
 	return C.int64_t(len(gPackedTxs) - 1)
+}
+
+//export transaction_new_
+func transaction_new_(expiration C.int64_t, refBlock *C.char, chainId *C.char) C.int64_t {
+	tx := NewTransaction(int(expiration))
+	tx.SetReferenceBlock(C.GoString(refBlock))
+
+	packedTx := NewPackedTransaction(tx)
+	packedTx.SetChainId(C.GoString(chainId))
+
+	return addPackedTx(packedTx)
+}
+
+//export transaction_from_json_
+func transaction_from_json_(tx *C.char) *C.char {
+	_tx := C.GoString(tx)
+	packedTx, err := NewPackedTransactionFromString(_tx)
+	if err != nil {
+		return renderError(err)
+	}
+	i := addPackedTx(packedTx)
+	return renderData(i)
 }
 
 //export transaction_free_
@@ -180,11 +195,11 @@ func transaction_sign_(idx C.int64_t, pub *C.char) *C.char {
 	}
 
 	_pub := C.GoString(pub)
-	err := gPackedTxs[idx].Sign(_pub)
+	sign, err := gPackedTxs[idx].Sign(_pub)
 	if err != nil {
 		return renderError(err)
 	}
-	return renderData("ok")
+	return renderData(sign)
 }
 
 //export transaction_pack_
