@@ -596,7 +596,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		if !ok {
 			return fmt.Errorf("invalid public_key value: %s", v)
 		}
-		pub, err := secp256k1.PublicKeyFromBase58(v)
+		pub, err := secp256k1.NewPublicKeyFromBase58(v)
 		if err != nil {
 			return err
 		}

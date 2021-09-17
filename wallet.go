@@ -27,7 +27,7 @@ func (w *Wallet) Import(name string, strPriv string) error {
 	}
 
 	pub := priv.GetPublicKey()
-	w.keys[pub.String()] = priv
+	w.keys[pub.StringEOS()] = priv
 	return nil
 }
 
@@ -49,7 +49,12 @@ func (w *Wallet) GetPrivateKey(pubKey string) (*secp256k1.PrivateKey, error) {
 }
 
 func (w *Wallet) Sign(digest []byte, pubKey string) (*secp256k1.Signature, error) {
-	priv, ok := w.keys[pubKey]
+	pub, err := secp256k1.NewPublicKeyFromBase58(pubKey)
+	if err != nil {
+		return nil, err
+	}
+
+	priv, ok := w.keys[pub.StringEOS()]
 	if !ok {
 		return nil, errors.New("not found")
 	}
