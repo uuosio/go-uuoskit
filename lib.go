@@ -409,14 +409,19 @@ func crypto_sign_digest_(digest *C.char, privateKey *C.char) *C.char {
 }
 
 //export crypto_get_public_key_
-func crypto_get_public_key_(privateKey *C.char) *C.char {
+func crypto_get_public_key_(privateKey *C.char, eosPub C.int) *C.char {
 	_privateKey, err := secp256k1.NewPrivateKeyFromBase58(C.GoString(privateKey))
 	if err != nil {
 		return renderError(err)
 	}
 
 	pub := _privateKey.GetPublicKey()
-	return renderData(pub.String())
+
+	if eosPub == 0 {
+		return renderData(pub.String())
+	} else {
+		return renderData(pub.StringEOS())
+	}
 }
 
 //export crypto_recover_key_
