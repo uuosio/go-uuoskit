@@ -133,7 +133,7 @@ func GetABISerializer() *ABISerializer {
 	gSerializer.baseTypeMap = make(map[string]bool)
 	gSerializer.contractAbiMap = make(map[string]*ABI)
 
-	gSerializer.AddContractABI("eosio.token", []byte(eosioTokenAbi))
+	gSerializer.SetContractABI("eosio.token", []byte(eosioTokenAbi))
 
 	for _, typeName := range baseTypes {
 		gSerializer.baseTypeMap[typeName] = true
@@ -167,7 +167,7 @@ func (t *ABISerializer) GetType(structName string, fieldName string) string {
 	return ""
 }
 
-func (t *ABISerializer) AddContractABI(contractName string, abi []byte) error {
+func (t *ABISerializer) SetContractABI(contractName string, abi []byte) error {
 	if len(abi) == 0 {
 		if _, ok := t.contractAbiMap[contractName]; ok {
 			delete(t.contractAbiMap, contractName)
@@ -239,6 +239,10 @@ func (t *ABISerializer) PackAbiStructByName(contractName string, structName stri
 	}
 
 	s := t.GetAbiStruct(contractName, structName)
+	if s == nil {
+		return nil, fmt.Errorf("abi struct %s not found in %s", structName, contractName)
+	}
+
 	err = t.PackAbiStruct(contractName, s, m)
 	if err != nil {
 		return nil, err
@@ -300,13 +304,11 @@ func StringToInt(s string) (int, error) {
 }
 
 func StripString(v string) (string, bool) {
-	if len(v) < 2 {
+	v, err := strconv.Unquote(v)
+	if err != nil {
 		return "", false
 	}
-	if v[0] != '"' || v[len(v)-1] != '"' {
-		return "", false
-	}
-	return v[1 : len(v)-1], true
+	return v, true
 }
 
 func IsSymbolValid(sym string) bool {
@@ -430,6 +432,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		if n > math.MaxInt64 || n < math.MinInt64 {
 			return fmt.Errorf("int64 overflow: %d", n)
 		}
+		t.enc.PackInt64(int64(n))
 		break
 	case "uint64":
 		n, err := strconv.ParseUint(v, 10, 64)
@@ -439,16 +442,22 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		if n > math.MaxUint64 || n < 0 {
 			return fmt.Errorf("uint64 overflow: %d", n)
 		}
-		t.enc.PackUint64(n)
+		t.enc.PackUint64(uint64(n))
 	case "int128", "uint128", "float128":
 		v, ok := StripString(v)
 		if !ok {
-			return fmt.Errorf("invalid int128 value: %s", v)
+			return fmt.Errorf("invalid %s, value: %s", typ, v)
 		}
+
 		if v[:2] != "0x" {
-			return fmt.Errorf("invalid int128 value: %s", v)
+			return fmt.Errorf("invalid %s, value: %s", typ, v)
 		}
+
 		v = v[2:]
+		if len(v) != 32 {
+			return fmt.Errorf("invalid %s, %s, should be 0x followed by 32 hex character", typ, v)
+		}
+
 		bs, err := hex.DecodeString(v)
 		if err != nil {
 			return err
@@ -479,20 +488,12 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		t.enc.PackVarUint32(uint32(n))
 	case "float32":
-		v, ok := StripString(v)
-		if !ok {
-			return fmt.Errorf("invalid float32 value: %s", v)
-		}
 		n, err := strconv.ParseFloat(v, 32)
 		if err != nil {
 			return err
 		}
 		t.enc.PackFloat32(float32(n))
 	case "float64":
-		v, ok := StripString(v)
-		if !ok {
-			return fmt.Errorf("invalid float64 value: %s", v)
-		}
 		n, err := strconv.ParseFloat(v, 64)
 		if err != nil {
 			return err
