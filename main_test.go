@@ -91,7 +91,7 @@ func TestAbi(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	serializer.AddContractABI("hello", strAbi)
+	serializer.SetContractABI("hello", strAbi)
 	actionStruct := serializer.GetActionStructName("hello", "transfer")
 	t.Log("+++++++actionType:", actionStruct)
 
@@ -142,7 +142,7 @@ func TestAbi(t *testing.T) {
 		"abi_extensions": []
 	}
 	`
-	serializer.AddContractABI("test", []byte(abi))
+	serializer.SetContractABI("test", []byte(abi))
 	{
 		args := `{"name": [1, 2, 3]}`
 		buf, err := serializer.PackActionArgs("test", "sayhello", []byte(args))
@@ -192,7 +192,7 @@ func TestPackAbiArray(t *testing.T) {
 		"abi_extensions": []
 	}
 	`
-	serializer.AddContractABI("test", []byte(abi))
+	serializer.SetContractABI("test", []byte(abi))
 	{
 		args := `{"name": [1, 2, 3]}`
 		buf, err := serializer.PackActionArgs("test", "sayhello", []byte(args))

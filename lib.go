@@ -276,7 +276,7 @@ func transaction_unpack_(data *C.char) *C.char {
 func abiserializer_set_contract_abi_(account *C.char, abi *C.char, length C.int) *C.char {
 	_account := C.GoString(account)
 	_abi := C.GoBytes(unsafe.Pointer(abi), length)
-	err := GetABISerializer().AddContractABI(_account, _abi)
+	err := GetABISerializer().SetContractABI(_account, _abi)
 	if err != nil {
 		return renderError(err)
 	}
