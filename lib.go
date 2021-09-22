@@ -58,7 +58,7 @@ func wallet_import_(name *C.char, priv *C.char) *C.char {
 	if err != nil {
 		return renderError(err)
 	}
-	log.Println("import", _name, _priv)
+	// log.Println("import", _name, _priv)
 	return renderData("ok")
 }
 
@@ -71,7 +71,7 @@ func wallet_get_public_keys_() *C.char {
 //export wallet_sign_digest_
 func wallet_sign_digest_(digest *C.char, pubKey *C.char) *C.char {
 	_pubKey := C.GoString(pubKey)
-	log.Println("++++++++wallet_sign_digest_:", C.GoString(digest))
+	// log.Println("++++++++wallet_sign_digest_:", C.GoString(digest))
 	_digest, err := hex.DecodeString(C.GoString(digest))
 	if err != nil {
 		return renderError(err)
@@ -389,7 +389,7 @@ func abiserializer_unpack_abi_(abi *C.char, length C.int) *C.char {
 
 //export crypto_sign_digest_
 func crypto_sign_digest_(digest *C.char, privateKey *C.char) *C.char {
-	log.Println(C.GoString(digest), C.GoString(privateKey))
+	// log.Println(C.GoString(digest), C.GoString(privateKey))
 
 	_privateKey, err := secp256k1.NewPrivateKeyFromBase58(C.GoString(privateKey))
 	if err != nil {
