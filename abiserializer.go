@@ -624,8 +624,9 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 
 		_vv := []byte(vv[1])
-		symbol_code := make([]byte, 7)
-		copy(symbol_code[:], _vv[:])
+		symbol_code := make([]byte, 8)
+		symbol_code[0] = byte(n)
+		copy(symbol_code[1:], _vv[:])
 		t.enc.WriteBytes(symbol_code)
 		break
 	case "symbol_code":
