@@ -11,6 +11,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -141,13 +142,13 @@ func transaction_from_json_(tx *C.char, chainId *C.char) *C.char {
 }
 
 //export transaction_free_
-func transaction_free_(_index C.int64_t) {
+func transaction_free_(_index C.int64_t) *C.char {
 	index := int(_index)
 	if index < 0 || index >= len(gPackedTxs) {
-		return
+		return renderError(errors.New("bad index"))
 	}
 	gPackedTxs[int(index)] = nil
-	return
+	return renderData("ok")
 }
 
 //export transaction_set_chain_id_
