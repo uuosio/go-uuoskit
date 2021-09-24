@@ -342,9 +342,9 @@ type AbiExtendedAsset struct {
 func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	switch typ {
 	case "bool":
-		if v == "true" {
+		if v == "true" || v == "1" {
 			t.enc.PackBool(true)
-		} else if v == "false" {
+		} else if v == "false" || v == "0" {
 			t.enc.PackBool(false)
 		} else {
 			return fmt.Errorf("invalid bool value: %s", v)
