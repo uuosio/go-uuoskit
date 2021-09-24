@@ -333,21 +333,6 @@ func IsSymbolValid(sym string) bool {
 	return true
 }
 
-func (t *ABISerializer) PackAbiValue(typ string, value AbiValue) error {
-	// switch typ {
-	// case "string":
-	// 	v, ok := value.value.(string)
-	// 	if !ok {
-	// 		return fmt.Errorf("abi value type error")
-	// 	}
-	// 	t.enc.PackString(v)
-	// }
-
-	v := value.value.(string)
-	// log.Println("++++++++++v:", v)
-	return t.ParseAbiStringValue(typ, v)
-}
-
 //{"quantity":"1.0000 EOS","contract":"eosio.token"}
 type AbiExtendedAsset struct {
 	Quantity string `json:"quantity"`
@@ -958,17 +943,29 @@ func ParseAsset(v string) ([]byte, bool) {
 	return enc.GetBytes(), true
 }
 
-//TODO:
 func (t *ABISerializer) PackArrayAbiValue(typ string, value []AbiValue) error {
 	t.enc.PackVarUint32(uint32(len(value)))
 	for _, v := range value {
 		_typ := strings.TrimSuffix(typ, "[]")
-		err := t.PackAbiValue(_typ, v)
+		err := t.ParseAbiValue(_typ, v)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (t *ABISerializer) GetBaseABIType(contractName string, typ string) (string, bool) {
+	abi := t.contractAbiMap[contractName]
+	if abi == nil {
+		return "", false
+	}
+	for _, v := range abi.Types {
+		if v.NewTypeName == typ {
+			return v.Type, true
+		}
+	}
+	return "", false
 }
 
 func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct, m map[string]AbiValue) error {
@@ -981,6 +978,16 @@ func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct,
 			return fmt.Errorf("missing field %s", name)
 		}
 		err := t.ParseAbiValue(typ, abiValue)
+		if err == nil {
+			continue
+		}
+
+		typ, ok = t.GetBaseABIType(contractName, typ)
+		if !ok {
+			return err
+		}
+
+		err = t.ParseAbiValue(typ, abiValue)
 		if err != nil {
 			return err
 		}
