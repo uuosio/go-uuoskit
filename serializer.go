@@ -138,6 +138,10 @@ func (dec *Decoder) Pos() int {
 	return dec.pos
 }
 
+func (dec *Decoder) IsEnd() bool {
+	return dec.pos >= len(dec.buf)
+}
+
 func (dec *Decoder) checkPos(n int) {
 	if dec.pos+n > len(dec.buf) {
 		panic("checkPos: buffer overflow in Decoder")

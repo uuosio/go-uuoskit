@@ -415,3 +415,63 @@ func TestCreateKey(t *testing.T) {
 	secp256k1.Init()
 	t.Log(CreateKey())
 }
+
+func TestBinaryExtension(t *testing.T) {
+	abi := `
+	{
+		"version": "eosio::abi/1.1",
+		"structs": [
+			{
+				"name": "testext",
+				"base": "",
+				"fields": [
+					{
+						"name": "a",
+						"type": "string"
+					},
+					{
+						"name": "b",
+						"type": "checksum256$"
+					}
+				]
+			}
+		],
+		"types": [],
+		"actions": [
+			{
+				"name": "testext",
+				"type": "testext",
+				"ricardian_contract": ""
+			}
+		],
+		"tables": [],
+		"ricardian_clauses": [],
+		"variants": [],
+		"abi_extensions": [],
+		"error_messages": []
+	}
+	`
+	serializer := GetABISerializer()
+	serializer.SetContractABI("hello", []byte(abi))
+	args := `{"a": "hello", "b": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`
+	buf, err := serializer.PackActionArgs("hello", "testext", []byte(args))
+	if err != nil {
+		panic(err)
+	}
+	t.Log(hex.EncodeToString(buf))
+	if hex.EncodeToString(buf) != "0568656c6c6faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+		panic("bad value")
+	}
+
+	{
+		args := `{"a": "hello"}`
+		buf, err := serializer.PackActionArgs("hello", "testext", []byte(args))
+		if err != nil {
+			panic(err)
+		}
+		t.Log(hex.EncodeToString(buf))
+		if hex.EncodeToString(buf) != "0568656c6c6f" {
+			panic("bad value")
+		}
+	}
+}

@@ -976,8 +976,18 @@ func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct,
 		abiValue, ok := m[name]
 		// log.Printf("++++++++%s %s\n", name, typ)
 		if !ok {
+			//handle binary_extension
+			if strings.HasSuffix(typ, "$") {
+				continue
+				//typ = strings.TrimSuffix(typ, "$")
+			}
 			return fmt.Errorf("missing field %s", name)
 		}
+
+		if strings.HasSuffix(typ, "$") {
+			typ = strings.TrimSuffix(typ, "$")
+		}
+
 		err := t.ParseAbiValue(typ, abiValue)
 		if err == nil {
 			continue
@@ -1010,6 +1020,14 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 	for _, v := range abiStruct.Fields {
 		typ := v.Type
 		name := v.Name
+
+		//handle binary_extension
+		if strings.HasSuffix(typ, "$") {
+			if t.dec.IsEnd() {
+				return nil
+			}
+			typ = strings.TrimRight(typ, "$")
+		}
 
 		//try to unpack inner abi type
 		if _, ok := t.baseTypeMap[typ]; ok {
