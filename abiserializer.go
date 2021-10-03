@@ -986,6 +986,16 @@ func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct,
 
 		if strings.HasSuffix(typ, "$") {
 			typ = strings.TrimSuffix(typ, "$")
+		} else if strings.HasSuffix(typ, "?") {
+			typ = strings.TrimSuffix(typ, "?")
+			if value, ok := abiValue.value.(string); ok {
+				if value == "null" {
+					t.enc.PackBool(false)
+					return nil
+				} else {
+					t.enc.PackBool(true)
+				}
+			}
 		}
 
 		err := t.ParseAbiValue(typ, abiValue)
@@ -1021,8 +1031,21 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 		typ := v.Type
 		name := v.Name
 
-		//handle binary_extension
-		if strings.HasSuffix(typ, "$") {
+		//handle optional
+		if strings.HasSuffix(typ, "?") {
+			if t.dec.IsEnd() {
+				return nil
+			}
+			v, err := t.dec.UnpackBool()
+			if err != nil {
+				return err
+			}
+			if !v {
+				result.Set(name, nil)
+				continue
+			}
+			typ = strings.TrimRight(typ, "?")
+		} else if strings.HasSuffix(typ, "$") { //handle binary_extension
 			if t.dec.IsEnd() {
 				return nil
 			}

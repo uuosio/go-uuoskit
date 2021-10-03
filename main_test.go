@@ -431,6 +431,10 @@ func TestBinaryExtension(t *testing.T) {
 					},
 					{
 						"name": "b",
+						"type": "checksum256?"
+					},
+					{
+						"name": "b",
 						"type": "checksum256$"
 					}
 				]
@@ -453,24 +457,24 @@ func TestBinaryExtension(t *testing.T) {
 	`
 	serializer := GetABISerializer()
 	serializer.SetContractABI("hello", []byte(abi))
-	args := `{"a": "hello", "b": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`
+	args := `{"a": "hello", "b": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "c": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`
 	buf, err := serializer.PackActionArgs("hello", "testext", []byte(args))
 	if err != nil {
 		panic(err)
 	}
 	t.Log(hex.EncodeToString(buf))
-	if hex.EncodeToString(buf) != "0568656c6c6faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+	if hex.EncodeToString(buf) != "0568656c6c6f01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
 		panic("bad value")
 	}
 
 	{
-		args := `{"a": "hello"}`
+		args := `{"a": "hello", "b": null}`
 		buf, err := serializer.PackActionArgs("hello", "testext", []byte(args))
 		if err != nil {
 			panic(err)
 		}
 		t.Log(hex.EncodeToString(buf))
-		if hex.EncodeToString(buf) != "0568656c6c6f" {
+		if hex.EncodeToString(buf) != "0568656c6c6f00" {
 			panic("bad value")
 		}
 	}
