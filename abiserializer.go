@@ -557,7 +557,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 			return err
 		}
 		if len(bs) > 32 {
-			return fmt.Errorf("invalid checksum256 value: %s", v)
+			return fmt.Errorf("wrong checksum256 size: %s", v)
 		}
 		buf := make([]byte, 32)
 		copy(buf[:], bs)
@@ -974,7 +974,7 @@ func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct,
 		typ := v.Type
 		name := v.Name
 		abiValue, ok := m[name]
-		// log.Printf("++++++++%s %s\n", name, typ)
+		// log.Printf("++++++++PackAbiStruct: %s %s\n", name, typ)
 		if !ok {
 			//handle binary_extension
 			if strings.HasSuffix(typ, "$") {
@@ -991,7 +991,7 @@ func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct,
 			if value, ok := abiValue.value.(string); ok {
 				if value == "null" {
 					t.enc.PackBool(false)
-					return nil
+					continue
 				} else {
 					t.enc.PackBool(true)
 				}
@@ -1033,9 +1033,6 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 
 		//handle optional
 		if strings.HasSuffix(typ, "?") {
-			if t.dec.IsEnd() {
-				return nil
-			}
 			v, err := t.dec.UnpackBool()
 			if err != nil {
 				return err

@@ -434,7 +434,7 @@ func TestBinaryExtension(t *testing.T) {
 						"type": "checksum256?"
 					},
 					{
-						"name": "b",
+						"name": "c",
 						"type": "checksum256$"
 					}
 				]
