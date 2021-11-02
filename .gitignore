@@ -3,7 +3,6 @@ libuuoskit.h
 
 *.abi
 *.wasm
-uuoskit
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

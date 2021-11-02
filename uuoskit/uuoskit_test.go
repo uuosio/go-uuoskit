@@ -1,4 +1,4 @@
-package main
+package uuoskit
 
 import (
 	"bytes"
@@ -409,11 +409,6 @@ func TestZlib(t *testing.T) {
 	// 	panic(err)
 	// }
 	t.Log(string(buf[:n]))
-}
-
-func TestCreateKey(t *testing.T) {
-	secp256k1.Init()
-	t.Log(CreateKey())
 }
 
 func TestBinaryExtension(t *testing.T) {

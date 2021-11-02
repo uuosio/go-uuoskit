@@ -1,4 +1,4 @@
-package main
+package uuoskit
 
 import (
 	"github.com/iancoleman/orderedmap"

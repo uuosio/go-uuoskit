@@ -20,6 +20,7 @@ import (
 	"unsafe"
 
 	secp256k1 "github.com/uuosio/go-secp256k1"
+	"github.com/uuosio/go-uuoskit/uuoskit"
 )
 
 func renderData(data interface{}) *C.char {
@@ -40,7 +41,7 @@ func renderError(err error) *C.char {
 func init_() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	secp256k1.Init()
-	if nil == GetABISerializer() {
+	if nil == uuoskit.GetABISerializer() {
 		panic("abi serializer not initialized")
 	}
 }
@@ -55,7 +56,7 @@ func say_hello_(name *C.char) {
 func wallet_import_(name *C.char, priv *C.char) *C.char {
 	_name := C.GoString(name)
 	_priv := C.GoString(priv)
-	err := GetWallet().Import(_name, _priv)
+	err := uuoskit.GetWallet().Import(_name, _priv)
 	if err != nil {
 		return renderError(err)
 	}
@@ -65,7 +66,7 @@ func wallet_import_(name *C.char, priv *C.char) *C.char {
 
 //export wallet_get_public_keys_
 func wallet_get_public_keys_() *C.char {
-	keys := GetWallet().GetPublicKeys()
+	keys := uuoskit.GetWallet().GetPublicKeys()
 	return renderData(keys)
 }
 
@@ -78,14 +79,14 @@ func wallet_sign_digest_(digest *C.char, pubKey *C.char) *C.char {
 		return renderError(err)
 	}
 
-	sign, err := GetWallet().Sign(_digest, _pubKey)
+	sign, err := uuoskit.GetWallet().Sign(_digest, _pubKey)
 	if err != nil {
 		return renderError(err)
 	}
 	return renderData(sign.String())
 }
 
-var gPackedTxs []*PackedTransaction
+var gPackedTxs []*uuoskit.PackedTransaction
 
 func validateIndex(idx C.int64_t) error {
 	if idx < 0 || idx >= C.int64_t(len(gPackedTxs)) {
@@ -99,9 +100,9 @@ func validateIndex(idx C.int64_t) error {
 	return nil
 }
 
-func addPackedTx(packedTx *PackedTransaction) C.int64_t {
+func addPackedTx(packedTx *uuoskit.PackedTransaction) C.int64_t {
 	if gPackedTxs == nil {
-		gPackedTxs = make([]*PackedTransaction, 0, 10)
+		gPackedTxs = make([]*uuoskit.PackedTransaction, 0, 10)
 	}
 
 	if len(gPackedTxs) >= 1024 {
@@ -120,10 +121,10 @@ func addPackedTx(packedTx *PackedTransaction) C.int64_t {
 
 //export transaction_new_
 func transaction_new_(expiration C.int64_t, refBlock *C.char, chainId *C.char) C.int64_t {
-	tx := NewTransaction(int(expiration))
+	tx := uuoskit.NewTransaction(int(expiration))
 	tx.SetReferenceBlock(C.GoString(refBlock))
 
-	packedTx := NewPackedTransaction(tx)
+	packedTx := uuoskit.NewPackedTransaction(tx)
 	packedTx.SetChainId(C.GoString(chainId))
 
 	return addPackedTx(packedTx)
@@ -132,7 +133,7 @@ func transaction_new_(expiration C.int64_t, refBlock *C.char, chainId *C.char) C
 //export transaction_from_json_
 func transaction_from_json_(tx *C.char, chainId *C.char) *C.char {
 	_tx := C.GoString(tx)
-	packedTx, err := NewPackedTransactionFromString(_tx)
+	packedTx, err := uuoskit.NewPackedTransactionFromString(_tx)
 	if err != nil {
 		return renderError(err)
 	}
@@ -178,7 +179,7 @@ func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data 
 	var __data []byte
 	__data, err := hex.DecodeString(_data)
 	if err != nil {
-		__data, err = GetABISerializer().PackActionArgs(_account, _name, []byte(_data))
+		__data, err = uuoskit.GetABISerializer().PackActionArgs(_account, _name, []byte(_data))
 		if err != nil {
 			return renderError(err)
 		}
@@ -190,10 +191,10 @@ func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data 
 		return renderError(err)
 	}
 
-	action := NewAction(NewName(_account), NewName(_name))
+	action := uuoskit.NewAction(uuoskit.NewName(_account), uuoskit.NewName(_name))
 	action.SetData(__data)
 	for k, v := range perms {
-		action.AddPermission(NewName(k), NewName(v))
+		action.AddPermission(uuoskit.NewName(k), uuoskit.NewName(v))
 	}
 
 	err = gPackedTxs[idx].AddAction(action)
@@ -259,7 +260,7 @@ func transaction_marshal_(idx C.int64_t) *C.char {
 //func (t *Transaction) Unpack(data []byte) (int, error) {
 //export transaction_unpack_
 func transaction_unpack_(data *C.char) *C.char {
-	t := Transaction{}
+	t := uuoskit.Transaction{}
 	_data, err := hex.DecodeString(C.GoString(data))
 	if err != nil {
 		return renderError(err)
@@ -277,7 +278,7 @@ func transaction_unpack_(data *C.char) *C.char {
 func abiserializer_set_contract_abi_(account *C.char, abi *C.char, length C.int) *C.char {
 	_account := C.GoString(account)
 	_abi := C.GoBytes(unsafe.Pointer(abi), length)
-	err := GetABISerializer().SetContractABI(_account, _abi)
+	err := uuoskit.GetABISerializer().SetContractABI(_account, _abi)
 	if err != nil {
 		return renderError(err)
 	}
@@ -289,7 +290,7 @@ func abiserializer_pack_action_args_(contractName *C.char, actionName *C.char, a
 	_contractName := C.GoString(contractName)
 	_actionName := C.GoString(actionName)
 	_args := C.GoBytes(unsafe.Pointer(args), args_len)
-	result, err := GetABISerializer().PackActionArgs(_contractName, _actionName, _args)
+	result, err := uuoskit.GetABISerializer().PackActionArgs(_contractName, _actionName, _args)
 	if err != nil {
 		return renderError(err)
 	}
@@ -305,7 +306,7 @@ func abiserializer_unpack_action_args_(contractName *C.char, actionName *C.char,
 	if err != nil {
 		return renderError(err)
 	}
-	result, err := GetABISerializer().UnpackActionArgs(_contractName, _actionName, __args)
+	result, err := uuoskit.GetABISerializer().UnpackActionArgs(_contractName, _actionName, __args)
 	if err != nil {
 		return renderError(err)
 	}
@@ -317,7 +318,7 @@ func abiserializer_pack_abi_type_(contractName *C.char, actionName *C.char, args
 	_contractName := C.GoString(contractName)
 	_actionName := C.GoString(actionName)
 	_args := C.GoBytes(unsafe.Pointer(args), args_len)
-	result, err := GetABISerializer().PackAbiType(_contractName, _actionName, _args)
+	result, err := uuoskit.GetABISerializer().PackAbiType(_contractName, _actionName, _args)
 	if err != nil {
 		return renderError(err)
 	}
@@ -333,7 +334,7 @@ func abiserializer_unpack_abi_type_(contractName *C.char, actionName *C.char, ar
 	if err != nil {
 		return renderError(err)
 	}
-	result, err := GetABISerializer().UnpackAbiType(_contractName, _actionName, __args)
+	result, err := uuoskit.GetABISerializer().UnpackAbiType(_contractName, _actionName, __args)
 	if err != nil {
 		return renderError(err)
 	}
@@ -343,7 +344,7 @@ func abiserializer_unpack_abi_type_(contractName *C.char, actionName *C.char, ar
 //export abiserializer_is_abi_cached_
 func abiserializer_is_abi_cached_(contractName *C.char) C.int {
 	_contractName := C.GoString(contractName)
-	result := GetABISerializer().IsAbiCached(_contractName)
+	result := uuoskit.GetABISerializer().IsAbiCached(_contractName)
 	if result {
 		return 1
 	} else {
@@ -353,25 +354,25 @@ func abiserializer_is_abi_cached_(contractName *C.char) C.int {
 
 //export s2n_
 func s2n_(s *C.char) C.uint64_t {
-	return C.uint64_t(S2N(C.GoString(s)))
+	return C.uint64_t(uuoskit.S2N(C.GoString(s)))
 }
 
 //export n2s_
 func n2s_(n C.uint64_t) *C.char {
-	return C.CString(N2S(uint64(n)))
+	return C.CString(uuoskit.N2S(uint64(n)))
 }
 
 //symbol to uint64
 //export sym2n_
 func sym2n_(str_symbol *C.char, precision C.uint64_t) C.uint64_t {
-	v := NewSymbol(C.GoString(str_symbol), int(uint64(precision))).Value
+	v := uuoskit.NewSymbol(C.GoString(str_symbol), int(uint64(precision))).Value
 	return C.uint64_t(v)
 }
 
 //export abiserializer_pack_abi_
 func abiserializer_pack_abi_(str_abi *C.char) *C.char {
 	_str_abi := C.GoString(str_abi)
-	result, err := GetABISerializer().PackABI(_str_abi)
+	result, err := uuoskit.GetABISerializer().PackABI(_str_abi)
 	if err != nil {
 		return renderError(err)
 	}
@@ -381,7 +382,7 @@ func abiserializer_pack_abi_(str_abi *C.char) *C.char {
 //export abiserializer_unpack_abi_
 func abiserializer_unpack_abi_(abi *C.char, length C.int) *C.char {
 	_abi := C.GoBytes(unsafe.Pointer(abi), length)
-	result, err := GetABISerializer().UnpackABI(_abi)
+	result, err := uuoskit.GetABISerializer().UnpackABI(_abi)
 	if err != nil {
 		return renderError(err)
 	}
