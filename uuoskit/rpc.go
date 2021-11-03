@@ -25,6 +25,16 @@ type GetTableRowsArgs struct {
 	ShowPayer     bool   `json:"show_payer"`
 }
 
+type GetRequiredKeysArgs struct {
+	Transaction   *Transaction `json:"transaction"`
+	AvailableKeys []string     `json:"available_keys"`
+}
+
+//required_keys
+type GetRequiredKeysResult struct {
+	RequiredKeys []string `json:"required_keys"`
+}
+
 type RpcError struct {
 	err string
 }
@@ -69,6 +79,25 @@ func (r *Rpc) GetInfo() (*ChainInfo, error) {
 	return &info, nil
 }
 
+func (r *Rpc) GetRequiredKeys(args GetRequiredKeysArgs) (*GetRequiredKeysResult, error) {
+	_args, err := json.Marshal(args)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := r.Call("chain", "get_required_keys", _args)
+	if err != nil {
+		return nil, err
+	}
+
+	result2 := &GetRequiredKeysResult{}
+	err = json.Unmarshal(result, result2)
+	if err != nil {
+		return nil, err
+	}
+	return result2, nil
+}
+
 func (t *Rpc) GetTableRows(args *GetTableRowsArgs) (*orderedmap.OrderedMap, error) {
 	result := orderedmap.New()
 	r, err := t.Call("chain", "get_table_rows", args)
@@ -82,9 +111,14 @@ func (t *Rpc) GetTableRows(args *GetTableRowsArgs) (*orderedmap.OrderedMap, erro
 	return result, nil
 }
 
-func (t *Rpc) PushTransaction(packedTx interface{}) (*orderedmap.OrderedMap, error) {
+func (t *Rpc) PushTransaction(packedTx *PackedTransaction) (*orderedmap.OrderedMap, error) {
 	result := orderedmap.New()
-	r, err := t.Call("chain", "push_transaction", packedTx)
+	_packedTx, err := json.Marshal(packedTx)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := t.Call("chain", "push_transaction", _packedTx)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +159,7 @@ func (r *Rpc) Call(api string, endpoint string, params interface{}) ([]byte, err
 		return body, nil
 	}
 
-	buf := bytes.NewBuffer([]byte(_params))
+	buf := bytes.NewBuffer(_params)
 	resp, err := r.client.Post(reqUrl, "application/json", buf)
 	if err != nil {
 		return nil, err
