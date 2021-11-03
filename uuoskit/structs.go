@@ -181,7 +181,7 @@ func (t *TimePointSec) Size() int {
 	return 4
 }
 
-func (t TimePointSec) MarshalJSON() ([]byte, error) {
+func (t *TimePointSec) MarshalJSON() ([]byte, error) {
 	s := time.Unix(int64(t.UTCSeconds), 0).UTC().Format("2006-01-02T15:04:05")
 	return json.Marshal(s)
 }
@@ -213,4 +213,30 @@ func (t *BlockTimestampType) Unpack(data []byte) (int, error) {
 
 func (t *BlockTimestampType) Size() int {
 	return 4
+}
+
+type JsonValue struct {
+	value interface{}
+}
+
+func (b *JsonValue) UnmarshalJSON(data []byte) error {
+	// fmt.Println("+++++:UnmarshaJSON", string(data))
+	if data[0] == '{' {
+		m := make(map[string]JsonValue)
+		err := json.Unmarshal(data, &m)
+		if err != nil {
+			return err
+		}
+		b.value = m
+	} else if data[0] == '[' {
+		m := make([]JsonValue, 0, 1)
+		err := json.Unmarshal(data, &m)
+		if err != nil {
+			return err
+		}
+		b.value = m
+	} else {
+		b.value = string(data)
+	}
+	return nil
 }

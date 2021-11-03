@@ -82,32 +82,6 @@ type ABI struct {
 	// Variants         []VariantDef   `json:"variants"`
 }
 
-type AbiValue struct {
-	value interface{}
-}
-
-func (b *AbiValue) UnmarshalJSON(data []byte) error {
-	// fmt.Println("+++++:UnmarshaJSON", string(data))
-	if data[0] == '{' {
-		m := make(map[string]AbiValue)
-		err := json.Unmarshal(data, &m)
-		if err != nil {
-			return err
-		}
-		b.value = m
-	} else if data[0] == '[' {
-		m := make([]AbiValue, 0, 1)
-		err := json.Unmarshal(data, &m)
-		if err != nil {
-			return err
-		}
-		b.value = m
-	} else {
-		b.value = string(data)
-	}
-	return nil
-}
-
 type ABISerializer struct {
 	abiMap         map[string]*ABIStruct
 	baseTypeMap    map[string]bool
@@ -189,7 +163,7 @@ func (t *ABISerializer) PackActionArgs(contractName, actionName string, args []b
 
 	t.enc.buf = t.enc.buf[:0]
 
-	m := make(map[string]AbiValue)
+	m := make(map[string]JsonValue)
 	err := json.Unmarshal(args, &m)
 	if err != nil {
 		return nil, err
@@ -232,7 +206,7 @@ func (t *ABISerializer) UnpackActionArgs(contractName string, actionName string,
 func (t *ABISerializer) PackAbiStructByName(contractName string, structName string, args string) ([]byte, error) {
 	t.enc.Reset()
 	t.contractName = contractName
-	m := make(map[string]AbiValue)
+	m := make(map[string]JsonValue)
 	err := json.Unmarshal([]byte(args), &m)
 	if err != nil {
 		return nil, err
@@ -255,7 +229,7 @@ func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) (
 
 	t.enc.Reset()
 
-	m := make(map[string]AbiValue)
+	m := make(map[string]JsonValue)
 	err := json.Unmarshal(args, &m)
 	if err != nil {
 		return nil, err
@@ -944,7 +918,7 @@ func ParseAsset(v string) ([]byte, bool) {
 	return enc.GetBytes(), true
 }
 
-func (t *ABISerializer) PackArrayAbiValue(typ string, value []AbiValue) error {
+func (t *ABISerializer) PackArrayAbiValue(typ string, value []JsonValue) error {
 	t.enc.PackVarUint32(uint32(len(value)))
 	for _, v := range value {
 		_typ := strings.TrimSuffix(typ, "[]")
@@ -969,7 +943,7 @@ func (t *ABISerializer) GetBaseABIType(contractName string, typ string) (string,
 	return "", false
 }
 
-func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct, m map[string]AbiValue) error {
+func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct, m map[string]JsonValue) error {
 	for _, v := range abiStruct.Fields {
 		typ := v.Type
 		name := v.Name
@@ -1109,24 +1083,24 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 	return nil
 }
 
-func (t *ABISerializer) ParseAbiValue(typ string, abiValue AbiValue) error {
+func (t *ABISerializer) ParseAbiValue(typ string, abiValue JsonValue) error {
 	switch v := abiValue.value.(type) {
 	case string:
 		err := t.ParseAbiStringValue(typ, v)
 		if err != nil {
 			return err
 		}
-	case AbiValue:
+	case JsonValue:
 		err := t.ParseAbiValue(typ, v)
 		if err != nil {
 			return err
 		}
-	case []AbiValue:
+	case []JsonValue:
 		err := t.PackArrayAbiValue(typ, v)
 		if err != nil {
 			return err
 		}
-	case map[string]AbiValue:
+	case map[string]JsonValue:
 		s := t.GetAbiStruct(t.contractName, typ)
 		if s == nil {
 			return fmt.Errorf("Unknown ABI type %s", typ)
