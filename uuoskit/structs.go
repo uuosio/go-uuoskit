@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -217,6 +218,18 @@ func (t *BlockTimestampType) Size() int {
 
 type JsonValue struct {
 	value interface{}
+}
+
+func (b *JsonValue) MarshalJSON() ([]byte, error) {
+	switch v := b.value.(type) {
+	case string:
+		return []byte(v), nil
+	case map[string]JsonValue:
+		return json.Marshal(v)
+	case []JsonValue:
+		return json.Marshal(v)
+	}
+	return nil, errors.New("bad JsonValue")
 }
 
 func (b *JsonValue) UnmarshalJSON(data []byte) error {
