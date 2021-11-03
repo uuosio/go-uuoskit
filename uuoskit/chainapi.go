@@ -136,16 +136,24 @@ func (api *ChainApi) DeployContract(account, codeFile string, abiFile string) er
 	return nil
 }
 
-func (api *ChainApi) PushAction(account, action, args string, actor, permission string) (string, error) {
-	chainInfo, err := api.rpc.GetInfo()
-	if err != nil {
-		return "", err
+func (api *ChainApi) getRequiredKeys(actions []Action) ([]string, error) {
+	args := GetRequiredKeysArgs{
+		Transaction:   NewTransaction(0),
+		AvailableKeys: GetWallet().GetPublicKeys(),
 	}
+	for i := range actions {
+		a := actions[i]
+		a.Data = []byte{}
+		args.Transaction.AddAction(&a)
+	}
+	r, err := api.rpc.GetRequiredKeys(args)
+	if err != nil {
+		return nil, err
+	}
+	return r.RequiredKeys, nil
+}
 
-	expiration := int(time.Now().Unix()) + 60
-	tx := NewTransaction(expiration)
-	tx.SetReferenceBlock(chainInfo.LastIrreversibleBlockID)
-
+func (api *ChainApi) PushActionWithArgs(account, action, args string, actor, permission string) (string, error) {
 	result, err := GetABISerializer().PackActionArgs(account, action, []byte(args))
 	if err != nil {
 		return "", err
@@ -156,7 +164,26 @@ func (api *ChainApi) PushAction(account, action, args string, actor, permission 
 	)
 	a.Data = result
 	a.AddPermission(NewName(actor), NewName(permission))
-	tx.AddAction(a)
+	return api.PushAction(a)
+}
+
+func (api *ChainApi) PushAction(action *Action) (string, error) {
+	return api.PushActions([]*Action{action})
+}
+
+func (api *ChainApi) PushActions(actions []*Action) (string, error) {
+	chainInfo, err := api.rpc.GetInfo()
+	if err != nil {
+		return "", err
+	}
+
+	expiration := int(time.Now().Unix()) + 60
+	tx := NewTransaction(expiration)
+	tx.SetReferenceBlock(chainInfo.LastIrreversibleBlockID)
+	for i := range actions {
+		a := actions[i]
+		tx.AddAction(a)
+	}
 
 	chainId := chainInfo.ChainID
 
@@ -164,17 +191,13 @@ func (api *ChainApi) PushAction(account, action, args string, actor, permission 
 	packedTx := NewPackedTransaction(tx)
 	packedTx.SetChainId(chainId)
 
-	rpcArgs := GetRequiredKeysArgs{
-		Transaction:   tx,
-		AvailableKeys: GetWallet().GetPublicKeys(),
-	}
-	r, err := api.rpc.GetRequiredKeys(rpcArgs)
+	pubKeys, err := api.getRequiredKeys(tx.Actions)
 	if err != nil {
 		return "", err
 	}
 
-	for i := range r.RequiredKeys {
-		pub := r.RequiredKeys[i]
+	for i := range pubKeys {
+		pub := pubKeys[i]
 		_, err = packedTx.Sign(pub)
 		if err != nil {
 			return "", err

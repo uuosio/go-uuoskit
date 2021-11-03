@@ -211,8 +211,6 @@ func TestPackAbiArray(t *testing.T) {
 
 }
 func TestTx(t *testing.T) {
-	secp256k1.Init()
-	defer secp256k1.Destroy()
 	rpc := NewRpc("https://testnode.uuos.network:8443")
 
 	chainInfo, err := rpc.GetInfo()
