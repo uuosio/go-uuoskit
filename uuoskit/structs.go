@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"time"
 )
 
 type Bytes []byte
@@ -178,6 +179,20 @@ func (t *TimePointSec) Unpack(data []byte) (int, error) {
 
 func (t *TimePointSec) Size() int {
 	return 4
+}
+
+func (t TimePointSec) MarshalJSON() ([]byte, error) {
+	s := time.Unix(int64(t.UTCSeconds), 0).UTC().Format("2006-01-02T15:04:05")
+	return json.Marshal(s)
+}
+
+func (a *TimePointSec) UnmarshalJSON(b []byte) error {
+	t, err := time.Parse(string(b), "2006-01-02T15:04:05")
+	if err != nil {
+		return err
+	}
+	a.UTCSeconds = uint32(t.Unix())
+	return nil
 }
 
 type BlockTimestampType struct {

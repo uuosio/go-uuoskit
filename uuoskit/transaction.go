@@ -49,9 +49,9 @@ type Transaction struct {
 	// unsigned_int    max_net_usage_words = 0UL; /// number of 8 byte words this transaction can serialize into after compressions
 	// uint8_t         max_cpu_usage_ms = 0UL; /// number of CPU usage units to bill transaction for
 	// unsigned_int    delay_sec = 0UL; /// number of seconds to delay transaction, default: 0
-	Expiration     uint32 `json:"expiration"`
-	RefBlockNum    uint16 `json:"ref_block_num"`
-	RefBlockPrefix uint32 `json:"ref_block_prefix"`
+	Expiration     TimePointSec `json:"expiration"`
+	RefBlockNum    uint16       `json:"ref_block_num"`
+	RefBlockPrefix uint32       `json:"ref_block_prefix"`
 	//[VLQ or Base-128 encoding](https://en.wikipedia.org/wiki/Variable-length_quantity)
 	//unsigned_int vaint (eosio.cdt/libraries/eosiolib/core/eosio/varint.hpp)
 	MaxNetUsageWords   VarUint32              `json:"max_net_usage_words"`
@@ -59,7 +59,7 @@ type Transaction struct {
 	DelaySec           VarUint32              `json:"delay_sec"`
 	ContextFreeActions []Action               `json:"context_free_actions"`
 	Actions            []Action               `json:"actions"`
-	Extention          []TransactionExtension `json:"extensions"`
+	Extention          []TransactionExtension `json:"transaction_extensions"`
 }
 
 type PackedTransaction struct {
@@ -74,7 +74,7 @@ type PackedTransaction struct {
 
 func NewTransaction(expiration int) *Transaction {
 	t := &Transaction{}
-	t.Expiration = uint32(expiration)
+	t.Expiration = TimePointSec{uint32(expiration)}
 	// t.RefBlockNum = uint16(taposBlockNum)
 	// t.RefBlockPrefix = uint32(taposBlockPrefix)
 	t.MaxNetUsageWords = VarUint32(0)
@@ -127,7 +127,7 @@ func (t *Transaction) Pack() []byte {
 		initSize += extention.Size()
 	}
 	enc := NewEncoder(initSize)
-	enc.Pack(t.Expiration)
+	enc.Pack(t.Expiration.UTCSeconds)
 	enc.Pack(t.RefBlockNum)
 	enc.Pack(t.RefBlockPrefix)
 	enc.PackVarUint32(uint32(t.MaxNetUsageWords))
@@ -155,7 +155,7 @@ func (t *Transaction) Unpack(data []byte) (int, error) {
 	var err error
 
 	dec := NewDecoder(data)
-	t.Expiration, err = dec.UnpackUint32()
+	t.Expiration.UTCSeconds, err = dec.UnpackUint32()
 	if err != nil {
 		return 0, err
 	}
