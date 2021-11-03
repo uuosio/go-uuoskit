@@ -5,12 +5,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/iancoleman/orderedmap"
 )
+
+type GetTableRowsArgs struct {
+	Json          bool   `json:"json"`
+	Code          string `json:"code"`
+	Scope         string `json:"scope"`
+	Table         string `json:"table"`
+	LowerBound    string `json:"lower_bound"`
+	UpperBound    string `json:"upper_bound"`
+	Limit         int    `json:"limit"`
+	KeyType       string `json:"key_type"`
+	IndexPosition int    `json:"index_position"`
+	Reverse       bool   `json:"reverse"`
+	ShowPayer     bool   `json:"show_payer"`
+}
 
 type RpcError struct {
 	err string
@@ -44,23 +57,45 @@ func NewRpc(url string) *Rpc {
 
 func (r *Rpc) GetInfo() (*ChainInfo, error) {
 	var info ChainInfo
-	err := r.Call("chain", "get_info", "", &info)
+	result, err := r.Call("chain", "get_info", "")
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(result, &info)
 	if err != nil {
 		return nil, err
 	}
 	return &info, nil
 }
 
-func (r *Rpc) PushTransaction(packedTx interface{}) (*orderedmap.OrderedMap, error) {
+func (t *Rpc) GetTableRows(args *GetTableRowsArgs) (*orderedmap.OrderedMap, error) {
 	result := orderedmap.New()
-	err := r.Call("chain", "push_transaction", packedTx, &result)
+	r, err := t.Call("chain", "get_table_rows", args)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(r, result)
 	if err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func (r *Rpc) Call(api string, endpoint string, params interface{}, result interface{}) error {
+func (t *Rpc) PushTransaction(packedTx interface{}) (*orderedmap.OrderedMap, error) {
+	result := orderedmap.New()
+	r, err := t.Call("chain", "push_transaction", packedTx)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(r, result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (r *Rpc) Call(api string, endpoint string, params interface{}) ([]byte, error) {
 	var _params []byte
 	reqUrl := fmt.Sprintf("%s/v1/%s/%s", r.url, api, endpoint)
 
@@ -73,45 +108,32 @@ func (r *Rpc) Call(api string, endpoint string, params interface{}, result inter
 		var err error
 		_params, err = json.Marshal(v)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	if len(_params) == 0 {
-		log.Println("++++reqUrl:", reqUrl)
 		resp, err := r.client.Get(reqUrl)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		err = json.Unmarshal(body, result)
-		if err != nil {
-			if err != nil {
-				return NewRpcError(string(body))
-			}
-		}
-		return nil
+		return body, nil
 	}
+
 	buf := bytes.NewBuffer([]byte(_params))
 	resp, err := r.client.Post(reqUrl, "application/json", buf)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	// log.Println(string(body))
-
-	err = json.Unmarshal(body, result)
-	if err != nil {
-		return NewRpcError(string(body))
-	}
-	return nil
+	return body, nil
 }
