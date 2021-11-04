@@ -151,10 +151,10 @@ func (api *ChainApi) getRequiredKeys(actions []Action) ([]string, error) {
 	return r.RequiredKeys, nil
 }
 
-func (api *ChainApi) PushActionWithArgs(account, action, args string, actor, permission string) (string, error) {
+func (api *ChainApi) PushActionWithArgs(account, action, args string, actor, permission string) (JsonValue, error) {
 	result, err := GetABISerializer().PackActionArgs(account, action, []byte(args))
 	if err != nil {
-		return "", err
+		return JsonValue{}, err
 	}
 	a := NewAction(
 		NewName(account),
@@ -165,14 +165,14 @@ func (api *ChainApi) PushActionWithArgs(account, action, args string, actor, per
 	return api.PushAction(a)
 }
 
-func (api *ChainApi) PushAction(action *Action) (string, error) {
+func (api *ChainApi) PushAction(action *Action) (JsonValue, error) {
 	return api.PushActions([]*Action{action})
 }
 
-func (api *ChainApi) PushActions(actions []*Action) (string, error) {
+func (api *ChainApi) PushActions(actions []*Action) (JsonValue, error) {
 	chainInfo, err := api.rpc.GetInfo()
 	if err != nil {
-		return "", err
+		return JsonValue{}, err
 	}
 
 	expiration := int(time.Now().Unix()) + 60
@@ -191,29 +191,27 @@ func (api *ChainApi) PushActions(actions []*Action) (string, error) {
 
 	pubKeys, err := api.getRequiredKeys(tx.Actions)
 	if err != nil {
-		return "", err
+		return JsonValue{}, err
 	}
 
 	for i := range pubKeys {
 		pub := pubKeys[i]
 		_, err = packedTx.Sign(pub)
 		if err != nil {
-			return "", err
+			return JsonValue{}, err
 		}
 	}
 
 	r2, err := api.rpc.PushTransaction(packedTx)
 	if err != nil {
-		return "", err
-	}
-
-	r3, err := json.MarshalIndent(r2, "", "  ")
-	if err != nil {
-		panic(err)
+		return JsonValue{}, err
 	}
 
 	if _, err := r2.Get("error"); err != nil {
-		return "", errors.New(string(r3))
+		if msg, err := r2.Get("error", "details", 0, "message"); err != nil {
+			return r2, errors.New(msg.(string))
+		}
+		return r2, errors.New("push_transaction error")
 	}
-	return string(r3), nil
+	return r2, nil
 }
