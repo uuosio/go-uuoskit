@@ -1,8 +1,6 @@
 package uuoskit
 
 import (
-	"errors"
-
 	secp256k1 "github.com/uuosio/go-secp256k1"
 )
 
@@ -23,7 +21,7 @@ func GetWallet() *Wallet {
 func (w *Wallet) Import(name string, strPriv string) error {
 	priv, err := secp256k1.NewPrivateKeyFromBase58(strPriv)
 	if err != nil {
-		return err
+		return newError(err)
 	}
 
 	pub := priv.GetPublicKey()
@@ -43,7 +41,7 @@ func (w *Wallet) GetPublicKeys() []string {
 func (w *Wallet) GetPrivateKey(pubKey string) (*secp256k1.PrivateKey, error) {
 	priv, ok := w.keys[pubKey]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, newErrorf("not found")
 	}
 	return priv, nil
 }
@@ -51,16 +49,16 @@ func (w *Wallet) GetPrivateKey(pubKey string) (*secp256k1.PrivateKey, error) {
 func (w *Wallet) Sign(digest []byte, pubKey string) (*secp256k1.Signature, error) {
 	pub, err := secp256k1.NewPublicKeyFromBase58(pubKey)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 
 	priv, ok := w.keys[pub.StringEOS()]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, newErrorf("not found")
 	}
 	sig, err := priv.Sign(digest)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	return sig, nil
 }

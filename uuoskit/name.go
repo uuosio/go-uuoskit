@@ -83,7 +83,7 @@ func (a *Name) MarshalJSON() ([]byte, error) {
 func (a *Name) UnmarshalJSON(b []byte) error {
 	n, err := strconv.Unquote(string(b))
 	if err != nil {
-		return err
+		return newError(err)
 	}
 	a.N = S2N(n)
 	return nil

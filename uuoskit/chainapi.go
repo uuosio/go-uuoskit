@@ -2,7 +2,6 @@ package uuoskit
 
 import (
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"log"
 	"time"
@@ -50,22 +49,22 @@ func (api *ChainApi) GetTableRows(
 func (api *ChainApi) DeployContract(account, codeFile string, abiFile string) error {
 	code, err := ioutil.ReadFile(codeFile)
 	if err != nil {
-		return err
+		return newError(err)
 	}
 
 	abi, err := ioutil.ReadFile(abiFile)
 	if err != nil {
-		return err
+		return newError(err)
 	}
 
 	binABI, err := GetABISerializer().PackABI(string(abi))
 	if err != nil {
-		return err
+		return newError(err)
 	}
 
 	chainInfo, err := api.rpc.GetInfo()
 	if err != nil {
-		return err
+		return newError(err)
 	}
 
 	expiration := int(time.Now().Unix()) + 60
@@ -102,24 +101,24 @@ func (api *ChainApi) DeployContract(account, codeFile string, abiFile string) er
 	}
 	r, err := api.rpc.GetRequiredKeys(args)
 	if err != nil {
-		return err
+		return newError(err)
 	}
 
 	for i := range r.RequiredKeys {
 		pub := r.RequiredKeys[i]
 		_, err = packedTx.Sign(pub)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 	}
 
 	r2, err := api.rpc.PushTransaction(packedTx)
 	if err != nil {
-		return err
+		return newError(err)
 	}
 
-	if _, err := r2.Get("error"); err != nil {
-		if msg, err := r2.Get("error", "details", 0, "message"); err != nil {
+	if _, err := r2.Get("error"); err == nil {
+		if msg, err := r2.Get("error", "details", 0, "message"); err == nil {
 			log.Println(msg)
 			if msg == "contract is already running this version of code" {
 				return nil
@@ -129,7 +128,7 @@ func (api *ChainApi) DeployContract(account, codeFile string, abiFile string) er
 		if err != nil {
 			panic(err)
 		}
-		return errors.New(string(r))
+		return newErrorf(string(r))
 	}
 	return nil
 }
@@ -146,7 +145,7 @@ func (api *ChainApi) getRequiredKeys(actions []Action) ([]string, error) {
 	}
 	r, err := api.rpc.GetRequiredKeys(args)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	return r.RequiredKeys, nil
 }
@@ -206,12 +205,13 @@ func (api *ChainApi) PushActions(actions []*Action) (JsonValue, error) {
 	if err != nil {
 		return JsonValue{}, err
 	}
-
-	if _, err := r2.Get("error"); err != nil {
-		if msg, err := r2.Get("error", "details", 0, "message"); err != nil {
-			return r2, errors.New(msg.(string))
+	if _, err := r2.Get("error"); err == nil {
+		msg, err := r2.Get("error", "details", 0, "message")
+		if err == nil {
+			return r2, newErrorf(msg.(string))
 		}
-		return r2, errors.New("push_transaction error")
+		log.Println(err)
+		return r2, newErrorf("push_transaction error")
 	}
 	return r2, nil
 }

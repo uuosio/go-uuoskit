@@ -3,7 +3,6 @@ package uuoskit
 import (
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -151,7 +150,7 @@ func (t *ABISerializer) SetContractABI(contractName string, abi []byte) error {
 	abiObj := &ABI{}
 	err := json.Unmarshal(abi, abiObj)
 	if err != nil {
-		return err
+		return newError(err)
 	}
 
 	t.contractAbiMap[contractName] = abiObj
@@ -166,7 +165,7 @@ func (t *ABISerializer) PackActionArgs(contractName, actionName string, args []b
 	m := make(map[string]JsonValue)
 	err := json.Unmarshal(args, &m)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 
 	abiStruct := t.GetActionStruct(contractName, actionName)
@@ -176,7 +175,7 @@ func (t *ABISerializer) PackActionArgs(contractName, actionName string, args []b
 
 	err = t.PackAbiStruct(contractName, abiStruct, m)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 
 	bs := t.enc.buf
@@ -194,11 +193,11 @@ func (t *ABISerializer) UnpackActionArgs(contractName string, actionName string,
 
 	result, err := t.UnpackAbiStruct(contractName, abiStruct, packedValue)
 	if result == nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	bs, err := json.Marshal(result)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	return bs, nil
 }
@@ -209,7 +208,7 @@ func (t *ABISerializer) PackAbiStructByName(contractName string, structName stri
 	m := make(map[string]JsonValue)
 	err := json.Unmarshal([]byte(args), &m)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 
 	s := t.GetAbiStruct(contractName, structName)
@@ -219,7 +218,7 @@ func (t *ABISerializer) PackAbiStructByName(contractName string, structName stri
 
 	err = t.PackAbiStruct(contractName, s, m)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	return t.enc.Bytes(), nil
 }
@@ -232,7 +231,7 @@ func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) (
 	m := make(map[string]JsonValue)
 	err := json.Unmarshal(args, &m)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 
 	abiStruct := t.GetAbiStruct(contractName, abiType)
@@ -242,7 +241,7 @@ func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) (
 
 	err = t.PackAbiStruct(contractName, abiStruct, m)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 
 	bs := t.enc.Bytes()
@@ -260,11 +259,11 @@ func (t *ABISerializer) UnpackAbiType(contractName string, abiName string, packe
 
 	result, err := t.UnpackAbiStruct(contractName, abiStruct, packedValue)
 	if result == nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	bs, err := json.Marshal(result)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	return bs, nil
 }
@@ -274,7 +273,7 @@ func StringToInt(s string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return i, err
+	return i, newError(err)
 }
 
 func StripString(v string) (string, bool) {
@@ -327,7 +326,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	case "int8":
 		n, err := StringToInt(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if n > math.MaxInt8 || n < math.MinInt8 {
 			return fmt.Errorf("int8 overflow: %d", n)
@@ -337,7 +336,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	case "uint8":
 		n, err := StringToInt(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if n > math.MaxUint8 || n < 0 {
 			return fmt.Errorf("uint8 overflow: %d", n)
@@ -347,7 +346,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	case "int16":
 		n, err := StringToInt(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if n > math.MaxInt16 || n < math.MinInt16 {
 			return fmt.Errorf("int16 overflow: %d", n)
@@ -357,7 +356,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	case "uint16":
 		n, err := StringToInt(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if n > math.MaxUint16 || n < 0 {
 			return fmt.Errorf("uint16 overflow: %d", n)
@@ -368,7 +367,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		// log.Println("++++++++++int32:", v)
 		n, err := StringToInt(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if n > math.MaxInt32 || n < math.MinInt32 {
 			return fmt.Errorf("int32 overflow: %d", n)
@@ -377,7 +376,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	case "uint32":
 		n, err := StringToInt(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if n > math.MaxUint32 || n < 0 {
 			return fmt.Errorf("uint32 overflow: %d", n)
@@ -386,7 +385,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	case "int64":
 		n, err := StringToInt(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if n > math.MaxInt64 || n < math.MinInt64 {
 			return fmt.Errorf("int64 overflow: %d", n)
@@ -396,7 +395,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	case "uint64":
 		n, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if n > math.MaxUint64 || n < 0 {
 			return fmt.Errorf("uint64 overflow: %d", n)
@@ -419,7 +418,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 
 		bs, err := hex.DecodeString(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if len(bs) > 16 {
 			return fmt.Errorf("invalid int128 value: %s", v)
@@ -430,7 +429,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	case "varint32":
 		n, err := StringToInt(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if n > math.MaxInt32 || n < math.MinInt32 {
 			return fmt.Errorf("varint32 overflow: %d", n)
@@ -440,7 +439,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	case "varuint32":
 		n, err := StringToInt(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if n > math.MaxUint32 || n < 0 {
 			return fmt.Errorf("varuint32 overflow: %d", n)
@@ -449,13 +448,13 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 	case "float32":
 		n, err := strconv.ParseFloat(v, 32)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		t.enc.PackFloat32(float32(n))
 	case "float64":
 		n, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		t.enc.PackFloat64(n)
 	case "time_point":
@@ -465,7 +464,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		tt, err := time.Parse(time.RFC3339, string(v)+"Z")
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		n := tt.UnixNano()
 		t.enc.PackInt64(n)
@@ -476,7 +475,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		tt, err := time.Parse(time.RFC3339, string(v)+"Z")
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		n := tt.Unix()
 		t.enc.PackUint32(uint32(n))
@@ -497,7 +496,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		bs, err := hex.DecodeString(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		t.enc.PackBytes(bs)
 	case "string":
@@ -513,7 +512,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		bs, err := hex.DecodeString(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if len(bs) > 20 {
 			return fmt.Errorf("invalid checksum160 value: %s", v)
@@ -528,7 +527,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		bs, err := hex.DecodeString(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if len(bs) > 32 {
 			return fmt.Errorf("wrong checksum256 size: %s", v)
@@ -543,7 +542,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		bs, err := hex.DecodeString(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if len(bs) > 64 {
 			return fmt.Errorf("invalid checksum512 value: %s", v)
@@ -558,7 +557,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		pub, err := secp256k1.NewPublicKeyFromBase58(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		t.enc.WriteBytes([]byte{0})
 		t.enc.WriteBytes(pub.Data[:])
@@ -570,7 +569,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		sig, err := secp256k1.NewSignatureFromBase58(v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		t.enc.WriteBytes([]byte{0})
 		t.enc.WriteBytes(sig.Data[:])
@@ -585,7 +584,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		n, err := strconv.ParseUint(vv[0], 10, 64)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if n > 16 {
 			return fmt.Errorf("invalid symbol value: %s", v)
@@ -628,7 +627,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		a := AbiExtendedAsset{}
 		err := json.Unmarshal([]byte(v), &a)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		r, ok := ParseAsset(a.Quantity)
 		if !ok {
@@ -642,8 +641,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		t.enc.PackUint64(n)
 	default:
-		errMsg := fmt.Sprintf("unsupported type: %s %T, %v\n", typ, v, v)
-		return errors.New(errMsg)
+		return newErrorf("unsupported type: %s %T, %v\n", typ, v, v)
 	}
 
 	return nil
@@ -654,146 +652,146 @@ func (t *ABISerializer) unpackAbiStructField(typ string) (interface{}, error) {
 	case "bool":
 		v, err := t.dec.UnpackBool()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "int8":
 		v, err := t.dec.UnpackInt8()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "uint8":
 		v, err := t.dec.UnpackUint8()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "int16":
 		v, err := t.dec.UnpackInt16()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "uint16":
 		v, err := t.dec.UnpackUint16()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "int32":
 		v, err := t.dec.UnpackInt32()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "uint32":
 		v, err := t.dec.UnpackUint32()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "int64":
 		v, err := t.dec.UnpackInt64()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "uint64":
 		v, err := t.dec.UnpackUint64()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "int128", "uint128", "float128":
 		buf := [16]byte{}
 		err := t.dec.Read(buf[:])
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return "0x" + hex.EncodeToString(buf[:]), nil
 	case "varint32":
 		v, err := t.dec.UnpackVarInt32()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "varuint32":
 		v, err := t.dec.UnpackVarUint32()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "float32":
 		v, err := t.dec.UnpackFloat32()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "float64":
 		v, err := t.dec.UnpackFloat64()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "time_point":
 		v, err := t.dec.ReadUint64()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		//convert seconds to iso8601
 		return time.Unix(0, int64(v)).Format("2006-01-02T15:04:05"), nil
 	case "time_point_sec", "block_timestamp_type":
 		v, err := t.dec.ReadUint32()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		//convert seconds to iso8601
 		return time.Unix(int64(v), 0).Format("2006-01-02T15:04:05"), nil
 	case "name":
 		v, err := t.dec.ReadUint64()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return N2S(v), nil
 	case "bytes":
 		v, err := t.dec.UnpackBytes()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return hex.EncodeToString(v), nil
 	case "string":
 		v, err := t.dec.UnpackString()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return v, nil
 	case "checksum160":
 		v := make([]byte, 20)
 		err := t.dec.Read(v)
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return hex.EncodeToString(v), nil
 	case "checksum256":
 		v := make([]byte, 32)
 		err := t.dec.Read(v)
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return hex.EncodeToString(v), nil
 	case "checksum512":
 		v := make([]byte, 64)
 		err := t.dec.Read(v)
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return hex.EncodeToString(v), nil
 	case "public_key":
 		v := make([]byte, 34)
 		err := t.dec.Read(v)
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		pub := secp256k1.PublicKey{}
 		copy(pub.Data[:], v[1:])
@@ -802,7 +800,7 @@ func (t *ABISerializer) unpackAbiStructField(typ string) (interface{}, error) {
 		v := make([]byte, 66)
 		err := t.dec.Read(v)
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		sig := secp256k1.Signature{}
 		copy(sig.Data[:], v[1:])
@@ -811,7 +809,7 @@ func (t *ABISerializer) unpackAbiStructField(typ string) (interface{}, error) {
 		buf := make([]byte, 8)
 		err := t.dec.Read(buf)
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		precision := int(buf[0])
 		sym := string(buf[1:])
@@ -821,7 +819,7 @@ func (t *ABISerializer) unpackAbiStructField(typ string) (interface{}, error) {
 		buf := make([]byte, 8)
 		err := t.dec.Read(buf)
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		sym := string(buf)
 		sym = strings.TrimRight(sym, "\x00")
@@ -829,12 +827,12 @@ func (t *ABISerializer) unpackAbiStructField(typ string) (interface{}, error) {
 	case "asset":
 		amount, err := t.dec.UnpackInt64()
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		sym := make([]byte, 8)
 		err = t.dec.Read(sym)
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		precision := int64(sym[0])
 		_sym := strings.TrimRight(string(sym[1:]), "\x00")
@@ -845,19 +843,18 @@ func (t *ABISerializer) unpackAbiStructField(typ string) (interface{}, error) {
 		// {"quantity":"1.0000 EOS","contract":"eosio.token"}
 		quantity, err := t.unpackAbiStructField("asset")
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		contract, err := t.unpackAbiStructField("name")
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		m := orderedmap.New()
 		m.Set("quantity", quantity)
 		m.Set("contract", contract)
 		return m, nil
 	default:
-		errMsg := fmt.Sprintf("unknown type %s", typ)
-		return nil, errors.New(errMsg)
+		return nil, newErrorf("unknown type %s", typ)
 	}
 }
 
@@ -924,7 +921,7 @@ func (t *ABISerializer) PackArrayAbiValue(typ string, value []JsonValue) error {
 		_typ := strings.TrimSuffix(typ, "[]")
 		err := t.ParseAbiValue(_typ, v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 	}
 	return nil
@@ -979,12 +976,12 @@ func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct,
 
 		typ, ok = t.GetBaseABIType(contractName, typ)
 		if !ok {
-			return err
+			return newError(err)
 		}
 
 		err = t.ParseAbiValue(typ, abiValue)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 	}
 	return nil
@@ -995,7 +992,7 @@ func (t *ABISerializer) UnpackAbiStruct(contractName string, abiStruct *ABIStruc
 	result := orderedmap.New()
 	err := t.unpackAbiStruct(contractName, abiStruct, result)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	return result, nil
 }
@@ -1009,7 +1006,7 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 		if strings.HasSuffix(typ, "?") {
 			v, err := t.dec.UnpackBool()
 			if err != nil {
-				return err
+				return newError(err)
 			}
 			if !v {
 				result.Set(name, nil)
@@ -1039,7 +1036,7 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 			result.Set(name, subResult)
 			err := t.unpackAbiStruct(contractName, subStruct, subResult)
 			if err != nil {
-				return err
+				return newError(err)
 			}
 			continue
 		}
@@ -1052,13 +1049,13 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 		arr := make([]interface{}, 0)
 		count, err := t.dec.UnpackLength()
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		if _, ok := t.baseTypeMap[typ]; ok {
 			for i := 0; i < count; i++ {
 				v, err := t.unpackAbiStructField(typ)
 				if err != nil {
-					return err
+					return newError(err)
 				}
 				arr = append(arr, v)
 			}
@@ -1074,7 +1071,7 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 			subResult := orderedmap.New()
 			err := t.unpackAbiStruct(contractName, subStruct, subResult)
 			if err != nil {
-				return err
+				return newError(err)
 			}
 			arr = append(arr, subResult)
 		}
@@ -1088,17 +1085,17 @@ func (t *ABISerializer) ParseAbiValue(typ string, abiValue JsonValue) error {
 	case string:
 		err := t.ParseAbiStringValue(typ, v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 	case JsonValue:
 		err := t.ParseAbiValue(typ, v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 	case []JsonValue:
 		err := t.PackArrayAbiValue(typ, v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 	case map[string]JsonValue:
 		s := t.GetAbiStruct(t.contractName, typ)
@@ -1107,7 +1104,7 @@ func (t *ABISerializer) ParseAbiValue(typ string, abiValue JsonValue) error {
 		}
 		err := t.PackAbiStruct(t.contractName, s, v)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 	default:
 		return fmt.Errorf("Unsupported type %[1]T: %[1]s", v)
@@ -1177,7 +1174,7 @@ func (t *ABISerializer) PackABI(strABI string) ([]byte, error) {
 	abi := &ABI{}
 	err := json.Unmarshal([]byte(strABI), abi)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 
 	enc := NewEncoder(len(strABI) * 3)

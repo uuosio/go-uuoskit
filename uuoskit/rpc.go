@@ -67,12 +67,12 @@ func (r *Rpc) GetInfo() (*ChainInfo, error) {
 	var info ChainInfo
 	result, err := r.Call("chain", "get_info", "")
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 
 	err = json.Unmarshal(result, &info)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	return &info, nil
 }
@@ -80,34 +80,34 @@ func (r *Rpc) GetInfo() (*ChainInfo, error) {
 func (r *Rpc) GetRequiredKeys(args GetRequiredKeysArgs) (*GetRequiredKeysResult, error) {
 	_args, err := json.Marshal(args)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 
 	result, err := r.Call("chain", "get_required_keys", _args)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 
 	result2 := &GetRequiredKeysResult{}
 	err = json.Unmarshal(result, result2)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	return result2, nil
 }
 
 func (t *Rpc) GetTableRows(args *GetTableRowsArgs) (JsonValue, error) {
-	result := make(map[string]JsonValue)
+	result := JsonValue{}
 	r, err := t.Call("chain", "get_table_rows", args)
 	if err != nil {
 		return NewJsonValue(nil), err
 	}
 
-	err = json.Unmarshal(r, result)
+	err = json.Unmarshal(r, &result)
 	if err != nil {
 		return NewJsonValue(nil), err
 	}
-	return NewJsonValue(result), nil
+	return result, nil
 }
 
 func (t *Rpc) PushTransaction(packedTx *PackedTransaction) (JsonValue, error) {
@@ -141,19 +141,19 @@ func (r *Rpc) Call(api string, endpoint string, params interface{}) ([]byte, err
 		var err error
 		_params, err = json.Marshal(v)
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 	}
 
 	if len(_params) == 0 {
 		resp, err := r.client.Get(reqUrl)
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return nil, err
+			return nil, newError(err)
 		}
 		return body, nil
 	}
@@ -161,12 +161,12 @@ func (r *Rpc) Call(api string, endpoint string, params interface{}) ([]byte, err
 	buf := bytes.NewBuffer(_params)
 	resp, err := r.client.Post(reqUrl, "application/json", buf)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	return body, nil
 }

@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 
 	secp256k1 "github.com/uuosio/go-secp256k1"
 )
@@ -98,7 +97,7 @@ func GetRefBlockPrefix(refBlock []byte) uint32 {
 func (t *Transaction) SetReferenceBlock(refBlock string) error {
 	id, err := hex.DecodeString(refBlock)
 	if err != nil {
-		return err
+		return newError(err)
 	}
 	t.RefBlockNum = uint16(GetRefBlockNum(id))
 	t.RefBlockPrefix = GetRefBlockPrefix(id)
@@ -236,7 +235,7 @@ func (t *Transaction) Sign(privKey string, chainId string) (string, error) {
 		return "", err
 	}
 	if len(_chainId) != 32 {
-		return "", errors.New("chainId must be 32 bytes")
+		return "", newErrorf("chainId must be 32 bytes")
 	}
 
 	hash := sha256.New()
@@ -273,7 +272,7 @@ func NewPackedTransactionFromString(tx string) (*PackedTransaction, error) {
 	packed.PackedTx = nil
 	packed.tx = &Transaction{}
 	if err := json.Unmarshal([]byte(tx), packed.tx); err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	packed.Signatures = []string{}
 	return packed, nil
@@ -283,7 +282,7 @@ func NewPackedTransactionFromString(tx string) (*PackedTransaction, error) {
 func (t *PackedTransaction) SetChainId(chainId string) error {
 	id, err := DecodeHash256(chainId)
 	if err != nil {
-		return err
+		return newError(err)
 	}
 	copy(t.chainId[:], id)
 	return nil
@@ -291,7 +290,7 @@ func (t *PackedTransaction) SetChainId(chainId string) error {
 
 func (t *PackedTransaction) AddAction(a *Action) error {
 	if t.PackedTx != nil {
-		return errors.New("can not add new action after pack or sign")
+		return newErrorf("can not add new action after pack or sign")
 	}
 	t.tx.AddAction(a)
 	return nil
@@ -299,7 +298,7 @@ func (t *PackedTransaction) AddAction(a *Action) error {
 
 func (t *PackedTransaction) sign(priv *secp256k1.PrivateKey) (string, error) {
 	if t.compressed {
-		return "", errors.New("can not sign after pack")
+		return "", newErrorf("can not sign after pack")
 	}
 
 	if t.PackedTx == nil {
@@ -346,7 +345,7 @@ func (t *PackedTransaction) Sign(pubKey string) (string, error) {
 	}
 
 	if empty {
-		return "", errors.New("chainId is empty")
+		return "", newErrorf("chainId is empty")
 	}
 
 	return t.sign(priv)

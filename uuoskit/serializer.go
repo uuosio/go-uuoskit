@@ -2,7 +2,6 @@ package uuoskit
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"math"
 	"unsafe"
@@ -224,7 +223,7 @@ func (dec *Decoder) ReadFloat64() (float64, error) {
 func (dec *Decoder) ReadBool() (bool, error) {
 	var b [1]byte
 	if err := dec.Read(b[:]); err != nil {
-		return false, err
+		return false, newError(err)
 	}
 	return b[0] == 1, nil
 }
@@ -252,7 +251,7 @@ func (dec *Decoder) UnpackName() (Name, error) {
 func (dec *Decoder) UnpackBytes() ([]byte, error) {
 	length, err := dec.UnpackLength()
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	dec.checkPos(length)
 	buf := make([]byte, length)
@@ -281,7 +280,7 @@ func (dec *Decoder) UnpackVarUint32() (VarUint32, error) {
 
 func (dec *Decoder) UnpackInt16() (int16, error) {
 	v, err := dec.ReadInt16()
-	return v, err
+	return v, newError(err)
 }
 
 func (dec *Decoder) UnpackUint16() (uint16, error) {
@@ -313,7 +312,7 @@ func (dec *Decoder) UnpackFloat64() (float64, error) {
 
 func (dec *Decoder) UnpackInt64() (int64, error) {
 	v, err := dec.ReadInt64()
-	return v, err
+	return v, newError(err)
 }
 
 func (dec *Decoder) UnpackUint64() (uint64, error) {
@@ -352,7 +351,7 @@ func (dec *Decoder) UnpackAction() (*Action, error) {
 	a := &Action{}
 	n, err := a.Unpack(dec.buf[dec.pos:])
 	if err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	dec.incPos(n)
 	return a, nil
@@ -373,7 +372,7 @@ func (dec *Decoder) Unpack(i interface{}) (n int, err error) {
 			return 0, err
 		}
 		dec.incPos(n)
-		return n, err
+		return n, newError(err)
 	case *string:
 		n = dec.Pos()
 		*v, err = dec.UnpackString()
@@ -728,6 +727,6 @@ func CalcPackedSize(i interface{}) (int, error) {
 	case Name:
 		return 8, nil
 	default:
-		return 0, errors.New("Unknow pack type")
+		return 0, newErrorf("Unknow pack type")
 	}
 }

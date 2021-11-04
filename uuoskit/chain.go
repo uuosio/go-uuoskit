@@ -43,7 +43,7 @@ type ChainInfo struct {
 func NewChainInfo(info []byte) (*ChainInfo, error) {
 	chainInfo := &ChainInfo{}
 	if err := json.Unmarshal(info, chainInfo); err != nil {
-		return nil, err
+		return nil, newError(err)
 	}
 	return chainInfo, nil
 }

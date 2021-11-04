@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -191,7 +191,7 @@ func (t TimePointSec) MarshalJSON() ([]byte, error) {
 func (a *TimePointSec) UnmarshalJSON(b []byte) error {
 	t, err := time.Parse(string(b), "2006-01-02T15:04:05")
 	if err != nil {
-		return err
+		return newError(err)
 	}
 	a.UTCSeconds = uint32(t.Unix())
 	return nil
@@ -242,9 +242,20 @@ func (b *JsonValue) SetValue(value interface{}) error {
 	return nil
 }
 
+func parseSubValue(subValue JsonValue) interface{} {
+	switch v := subValue.value.(type) {
+	case string:
+		return strings.Trim(v, "\"")
+	case []JsonValue, map[string]JsonValue:
+		return subValue.value
+	}
+	return subValue
+}
+
+//return string, []JsonValue, or map[string]JsonValue
 func (b *JsonValue) Get(keys ...interface{}) (interface{}, error) {
 	if len(keys) == 0 {
-		return JsonValue{}, errors.New("no key specified")
+		return JsonValue{}, newErrorf("no key specified")
 	}
 
 	value := b.value
@@ -253,15 +264,23 @@ func (b *JsonValue) Get(keys ...interface{}) (interface{}, error) {
 		case string:
 			switch v2 := value.(type) {
 			case map[string]JsonValue:
-				value = v2[v]
+				subValue, ok := v2[v]
+				if !ok {
+					return nil, newErrorf("key not found")
+				}
+				value = parseSubValue(subValue)
 			case JsonValue:
 				v3, ok := v2.value.(map[string]JsonValue)
 				if !ok {
-					return JsonValue{}, errors.New("JsonValue is not a map")
+					return JsonValue{}, newErrorf("1:JsonValue is not a map")
 				}
-				value = v3[v]
+				subValue, ok := v3[v]
+				if !ok {
+					return nil, newErrorf("key not found")
+				}
+				value = parseSubValue(subValue)
 			default:
-				return JsonValue{}, errors.New("JsonValue is not a map")
+				return JsonValue{}, newErrorf("2:JsonValue is not a map")
 			}
 		case int:
 			var arr []JsonValue
@@ -272,17 +291,17 @@ func (b *JsonValue) Get(keys ...interface{}) (interface{}, error) {
 			case JsonValue:
 				arr, ok = v.value.([]JsonValue)
 				if !ok {
-					return JsonValue{}, errors.New("JsonValue is not an array")
+					return JsonValue{}, newErrorf("JsonValue is not an array")
 				}
 			default:
-				return JsonValue{}, errors.New("JsonValue is not an array")
+				return JsonValue{}, newErrorf("JsonValue is not an array")
 			}
 			if v < 0 || v >= len(arr) {
-				return JsonValue{}, errors.New("index out of range")
+				return JsonValue{}, newErrorf("index out of range")
 			}
 			value = arr[v]
 		default:
-			return JsonValue{}, errors.New("invalid key type")
+			return JsonValue{}, newErrorf("invalid key type")
 		}
 	}
 	return value, nil
@@ -306,7 +325,7 @@ func (b JsonValue) MarshalJSON() ([]byte, error) {
 	case []JsonValue:
 		return json.Marshal(v)
 	}
-	return nil, errors.New("bad JsonValue")
+	return nil, newErrorf("bad JsonValue")
 }
 
 func (b *JsonValue) UnmarshalJSON(data []byte) error {
@@ -315,14 +334,14 @@ func (b *JsonValue) UnmarshalJSON(data []byte) error {
 		m := make(map[string]JsonValue)
 		err := json.Unmarshal(data, &m)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		b.value = m
 	} else if data[0] == '[' {
 		m := make([]JsonValue, 0, 1)
 		err := json.Unmarshal(data, &m)
 		if err != nil {
-			return err
+			return newError(err)
 		}
 		b.value = m
 	} else {
