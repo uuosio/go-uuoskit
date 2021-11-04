@@ -962,7 +962,7 @@ func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct,
 			typ = strings.TrimSuffix(typ, "$")
 		} else if strings.HasSuffix(typ, "?") {
 			typ = strings.TrimSuffix(typ, "?")
-			if value, ok := abiValue.value.(string); ok {
+			if value, ok := abiValue.GetValue().(string); ok {
 				if value == "null" {
 					t.enc.PackBool(false)
 					continue
@@ -1084,7 +1084,7 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 }
 
 func (t *ABISerializer) ParseAbiValue(typ string, abiValue JsonValue) error {
-	switch v := abiValue.value.(type) {
+	switch v := abiValue.GetValue().(type) {
 	case string:
 		err := t.ParseAbiStringValue(typ, v)
 		if err != nil {

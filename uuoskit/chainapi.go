@@ -6,8 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"time"
-
-	"github.com/iancoleman/orderedmap"
 )
 
 type ChainApi struct {
@@ -32,7 +30,7 @@ func (api *ChainApi) GetTableRows(
 	indexPosition int,
 	reverse bool,
 	showPayer bool,
-) (*orderedmap.OrderedMap, error) {
+) (JsonValue, error) {
 	args := GetTableRowsArgs{
 		Json:          json,
 		Code:          code,
@@ -120,8 +118,8 @@ func (api *ChainApi) DeployContract(account, codeFile string, abiFile string) er
 		return err
 	}
 
-	if _, ok := r2.Get("error"); ok {
-		if msg, ok := DeepGet(r2, "error", "details", 0, "message"); ok {
+	if _, err := r2.Get("error"); err != nil {
+		if msg, err := r2.Get("error", "details", 0, "message"); err != nil {
 			log.Println(msg)
 			if msg == "contract is already running this version of code" {
 				return nil
@@ -214,7 +212,7 @@ func (api *ChainApi) PushActions(actions []*Action) (string, error) {
 		panic(err)
 	}
 
-	if _, ok := r2.Get("error"); ok {
+	if _, err := r2.Get("error"); err != nil {
 		return "", errors.New(string(r3))
 	}
 	return string(r3), nil

@@ -274,9 +274,9 @@ func TestTx(t *testing.T) {
 	}
 
 	{
-		v, ok := DeepGet(r, "processed", "action_traces", 0, "action_ordinal")
-		if !ok {
-			panic("id not found")
+		v, err := r.Get("processed", "action_traces", 0, "action_ordinal")
+		if err != nil {
+			panic(err)
 		}
 		t.Logf("%T\n", v)
 	}

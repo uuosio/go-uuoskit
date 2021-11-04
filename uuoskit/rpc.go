@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
-
-	"github.com/iancoleman/orderedmap"
 )
 
 type GetTableRowsArgs struct {
@@ -98,33 +96,34 @@ func (r *Rpc) GetRequiredKeys(args GetRequiredKeysArgs) (*GetRequiredKeysResult,
 	return result2, nil
 }
 
-func (t *Rpc) GetTableRows(args *GetTableRowsArgs) (*orderedmap.OrderedMap, error) {
-	result := orderedmap.New()
+func (t *Rpc) GetTableRows(args *GetTableRowsArgs) (JsonValue, error) {
+	result := make(map[string]JsonValue)
 	r, err := t.Call("chain", "get_table_rows", args)
 	if err != nil {
-		return nil, err
+		return NewJsonValue(nil), err
 	}
+
 	err = json.Unmarshal(r, result)
 	if err != nil {
-		return nil, err
+		return NewJsonValue(nil), err
 	}
-	return result, nil
+	return NewJsonValue(result), nil
 }
 
-func (t *Rpc) PushTransaction(packedTx *PackedTransaction) (*orderedmap.OrderedMap, error) {
-	result := orderedmap.New()
+func (t *Rpc) PushTransaction(packedTx *PackedTransaction) (JsonValue, error) {
+	result := JsonValue{}
 	_packedTx, err := json.Marshal(packedTx)
 	if err != nil {
-		return nil, err
+		return JsonValue{}, err
 	}
 
 	r, err := t.Call("chain", "push_transaction", _packedTx)
 	if err != nil {
-		return nil, err
+		return JsonValue{}, err
 	}
-	err = json.Unmarshal(r, result)
+	err = json.Unmarshal(r, &result)
 	if err != nil {
-		return nil, err
+		return JsonValue{}, err
 	}
 	return result, nil
 }

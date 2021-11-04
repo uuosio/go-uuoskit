@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"time"
 )
 
@@ -182,7 +183,7 @@ func (t *TimePointSec) Size() int {
 	return 4
 }
 
-func (t *TimePointSec) MarshalJSON() ([]byte, error) {
+func (t TimePointSec) MarshalJSON() ([]byte, error) {
 	s := time.Unix(int64(t.UTCSeconds), 0).UTC().Format("2006-01-02T15:04:05")
 	return json.Marshal(s)
 }
@@ -220,10 +221,86 @@ type JsonValue struct {
 	value interface{}
 }
 
-func (b *JsonValue) MarshalJSON() ([]byte, error) {
+func NewJsonValue(value interface{}) JsonValue {
+	retValue := JsonValue{}
+	retValue.SetValue(value)
+	return retValue
+}
+
+func (b *JsonValue) GetValue() interface{} {
+	return b.value
+}
+
+func (b *JsonValue) SetValue(value interface{}) error {
+	switch value.(type) {
+	case string, []JsonValue, map[string]JsonValue:
+		b.value = value
+		return nil
+	default:
+		panic("value must be a string, slice, or map")
+	}
+	return nil
+}
+
+func (b *JsonValue) Get(keys ...interface{}) (interface{}, error) {
+	if len(keys) == 0 {
+		return JsonValue{}, errors.New("no key specified")
+	}
+
+	value := b.value
+	for _, key := range keys {
+		switch v := key.(type) {
+		case string:
+			switch v2 := value.(type) {
+			case map[string]JsonValue:
+				value = v2[v]
+			case JsonValue:
+				v3, ok := v2.value.(map[string]JsonValue)
+				if !ok {
+					return JsonValue{}, errors.New("JsonValue is not a map")
+				}
+				value = v3[v]
+			default:
+				return JsonValue{}, errors.New("JsonValue is not a map")
+			}
+		case int:
+			var arr []JsonValue
+			var ok bool
+			switch v := value.(type) {
+			case []JsonValue:
+				arr = v
+			case JsonValue:
+				arr, ok = v.value.([]JsonValue)
+				if !ok {
+					return JsonValue{}, errors.New("JsonValue is not an array")
+				}
+			default:
+				return JsonValue{}, errors.New("JsonValue is not an array")
+			}
+			if v < 0 || v >= len(arr) {
+				return JsonValue{}, errors.New("index out of range")
+			}
+			value = arr[v]
+		default:
+			return JsonValue{}, errors.New("invalid key type")
+		}
+	}
+	return value, nil
+}
+
+func (b JsonValue) MarshalJSON() ([]byte, error) {
 	switch v := b.value.(type) {
 	case string:
-		return []byte(v), nil
+		if _, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return []byte(v), nil
+		} else {
+			return []byte(strconv.Quote(v)), nil
+		}
+	case JsonValue:
+		if s, ok := v.value.(string); ok {
+			return []byte(s), nil
+		}
+		return json.Marshal(v.value)
 	case map[string]JsonValue:
 		return json.Marshal(v)
 	case []JsonValue:
