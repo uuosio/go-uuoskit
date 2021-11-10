@@ -1,6 +1,8 @@
 package main
 
-// #include <stdint.h>
+//#include <stdint.h>
+//#include <stddef.h>
+//#include <stdbool.h>
 // static char* get_p(char **pp, int i)
 // {
 //	    return pp[i];
@@ -497,4 +499,14 @@ func genPrivKey(rand io.Reader) []byte {
 	}
 
 	return privKeyBytes[:]
+}
+
+//export set_debug_flag_
+func set_debug_flag_(debug C.bool) {
+	uuoskit.SetDebug(bool(debug))
+}
+
+//export get_debug_flag_
+func get_debug_flag_() C.bool {
+	return C.bool(uuoskit.GetDebug())
 }

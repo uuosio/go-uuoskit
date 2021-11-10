@@ -8,6 +8,18 @@ import (
 	traceable_errors "github.com/go-errors/errors"
 )
 
+var (
+	DEBUG = true
+)
+
+func SetDebug(debug bool) {
+	DEBUG = debug
+}
+
+func GetDebug() bool {
+	return DEBUG
+}
+
 func DecodeHash256(hash string) ([]byte, error) {
 	_hash, err := hex.DecodeString(hash)
 	if err != nil {

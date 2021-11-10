@@ -1,9 +1,5 @@
 package uuoskit
 
-const (
-	DEBUG = true
-)
-
 var baseABI = `
 {
     "version": "eosio::abi/1.1",
