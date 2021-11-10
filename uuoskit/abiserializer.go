@@ -271,9 +271,9 @@ func (t *ABISerializer) UnpackAbiType(contractName string, abiName string, packe
 func StringToInt(s string) (int, error) {
 	i, err := strconv.Atoi(s)
 	if err != nil {
-		return 0, err
+		return 0, newError(err)
 	}
-	return i, newError(err)
+	return i, nil
 }
 
 func StripString(v string) (string, bool) {
