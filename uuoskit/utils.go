@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"runtime"
-	"strings"
+
+	traceable_errors "github.com/go-errors/errors"
 )
 
 func DecodeHash256(hash string) ([]byte, error) {
@@ -19,46 +19,19 @@ func DecodeHash256(hash string) ([]byte, error) {
 	return _hash, nil
 }
 
-type DebugError struct {
-	lines []string
-	err   error
-}
-
-func (e *DebugError) Error() string {
-	if DEBUG {
-		errMsg := strings.Join(e.lines, "\n")
-		return errMsg + "\n" + e.err.Error()
-	} else {
-		return e.err.Error()
-	}
-}
-
-func NewDebugError(lineInfo string, err error) error {
-	return &DebugError{[]string{lineInfo}, err}
-}
-
 func newError(err error) error {
-	debugErr, ok := err.(*DebugError)
-	if ok {
-		if len(debugErr.lines) > 1000 {
-			panic(err)
-		}
-		pc, fn, line, _ := runtime.Caller(1)
-		lineInfo := fmt.Sprintf("%s[%s:%d]", runtime.FuncForPC(pc).Name(), fn, line)
-		//insert lineInfo at the beginning of lines
-		debugErr.lines = append(debugErr.lines[:1], debugErr.lines[0:]...)
-		debugErr.lines[0] = lineInfo
-		return debugErr
+	if DEBUG {
+		return traceable_errors.New(err.Error())
 	} else {
-		pc, fn, line, _ := runtime.Caller(1)
-		lineInfo := fmt.Sprintf("[error] in %s[%s:%d]", runtime.FuncForPC(pc).Name(), fn, line)
-		return NewDebugError(lineInfo, err)
+		return err
 	}
 }
 
 func newErrorf(format string, args ...interface{}) error {
 	errMsg := fmt.Sprintf(format, args...)
-	pc, fn, line, _ := runtime.Caller(1)
-	lineInfo := fmt.Sprintf("[error] in %s[%s:%d]", runtime.FuncForPC(pc).Name(), fn, line)
-	return NewDebugError(lineInfo, errors.New(errMsg))
+	if DEBUG {
+		return traceable_errors.New(errMsg)
+	} else {
+		return errors.New(errMsg)
+	}
 }

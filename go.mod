@@ -3,6 +3,7 @@ module github.com/uuosio/go-uuoskit
 go 1.17
 
 require (
+	github.com/go-errors/errors v1.4.1
 	github.com/iancoleman/orderedmap v0.2.0
 	github.com/stretchr/testify v1.7.0
 	github.com/uuosio/go-secp256k1 v0.1.1-0.20210917123744-d49c27f4703d

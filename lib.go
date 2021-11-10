@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"unsafe"
 
+	traceable_errors "github.com/go-errors/errors"
 	secp256k1 "github.com/uuosio/go-secp256k1"
 	"github.com/uuosio/go-uuoskit/uuoskit"
 )
@@ -30,11 +31,18 @@ func renderData(data interface{}) *C.char {
 }
 
 func renderError(err error) *C.char {
-	pc, fn, line, _ := runtime.Caller(1)
-	errMsg := fmt.Sprintf("[error] in %s[%s:%d] %v", runtime.FuncForPC(pc).Name(), fn, line, err)
-	ret := map[string]interface{}{"error": errMsg}
-	result, _ := json.Marshal(ret)
-	return C.CString(string(result))
+	if _err, ok := err.(*traceable_errors.Error); ok {
+		errMsg := _err.ErrorStack()
+		ret := map[string]interface{}{"error": errMsg}
+		result, _ := json.Marshal(ret)
+		return C.CString(string(result))
+	} else {
+		pc, fn, line, _ := runtime.Caller(1)
+		errMsg := fmt.Sprintf("[error] in %s[%s:%d] %v", runtime.FuncForPC(pc).Name(), fn, line, err)
+		ret := map[string]interface{}{"error": errMsg}
+		result, _ := json.Marshal(ret)
+		return C.CString(string(result))
+	}
 }
 
 //export init_
