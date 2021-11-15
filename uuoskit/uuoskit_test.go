@@ -390,6 +390,20 @@ func TestTxMarshal(t *testing.T) {
 
 }
 
+func TestTimePointSec(t *testing.T) {
+	tp := TimePointSec{10}
+	r, err := json.Marshal(&tp)
+	if err != nil {
+		panic(err)
+	}
+	t.Logf("%x", r)
+	err = json.Unmarshal(r, &tp)
+	if err != nil {
+		panic(err)
+	}
+	t.Logf("%v", tp.UTCSeconds)
+}
+
 func TestZlib(t *testing.T) {
 	var b bytes.Buffer
 	w := zlib.NewWriter(&b)
