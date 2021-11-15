@@ -33,6 +33,9 @@ func DecodeHash256(hash string) ([]byte, error) {
 
 func newError(err error) error {
 	if DEBUG {
+		if _, ok := err.(*traceable_errors.Error); ok {
+			return err
+		}
 		return traceable_errors.New(err.Error())
 	} else {
 		return err
