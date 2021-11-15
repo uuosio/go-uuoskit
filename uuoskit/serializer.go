@@ -312,7 +312,10 @@ func (dec *Decoder) UnpackFloat64() (float64, error) {
 
 func (dec *Decoder) UnpackInt64() (int64, error) {
 	v, err := dec.ReadInt64()
-	return v, newError(err)
+	if err != nil {
+		return 0, err
+	}
+	return v, nil
 }
 
 func (dec *Decoder) UnpackUint64() (uint64, error) {
