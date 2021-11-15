@@ -189,7 +189,7 @@ func (t TimePointSec) MarshalJSON() ([]byte, error) {
 }
 
 func (a *TimePointSec) UnmarshalJSON(b []byte) error {
-	t, err := time.Parse(string(b), "2006-01-02T15:04:05")
+	t, err := time.Parse("2006-01-02T15:04:05", strings.Trim(string(b), "\""))
 	if err != nil {
 		return newError(err)
 	}
