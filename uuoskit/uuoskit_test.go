@@ -404,6 +404,23 @@ func TestTimePointSec(t *testing.T) {
 	t.Logf("%v", tp.UTCSeconds)
 }
 
+func TestBytes(t *testing.T) {
+	bs := Bytes{}
+	err := json.Unmarshal([]byte(`"aabb"`), &bs)
+	if err != nil {
+		panic(err)
+	}
+
+	bs2, err := json.Marshal(bs)
+	if err != nil {
+		panic(err)
+	}
+
+	if string(bs2) != `"aabb"` {
+		panic("bad value")
+	}
+}
+
 func TestZlib(t *testing.T) {
 	var b bytes.Buffer
 	w := zlib.NewWriter(&b)

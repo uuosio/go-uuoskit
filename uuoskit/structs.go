@@ -15,6 +15,15 @@ func (t Bytes) MarshalJSON() ([]byte, error) {
 	return json.Marshal(hex.EncodeToString([]byte(t)))
 }
 
+func (a *Bytes) UnmarshalJSON(b []byte) error {
+	bs, err := hex.DecodeString(strings.Trim(string(b), `"`))
+	if err != nil {
+		return newError(err)
+	}
+	*a = append((*a)[:0], bs...)
+	return nil
+}
+
 type VarInt32 int32
 
 func (t *VarInt32) Pack() []byte {
