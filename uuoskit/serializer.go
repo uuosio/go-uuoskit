@@ -141,10 +141,11 @@ func (dec *Decoder) IsEnd() bool {
 	return dec.pos >= len(dec.buf)
 }
 
-func (dec *Decoder) checkPos(n int) {
+func (dec *Decoder) checkPos(n int) error {
 	if dec.pos+n > len(dec.buf) {
-		panic("checkPos: buffer overflow in Decoder")
+		return newErrorf("checkPos: buffer overflow in Decoder")
 	}
+	return nil
 }
 
 func (dec *Decoder) incPos(n int) {
@@ -155,7 +156,9 @@ func (dec *Decoder) incPos(n int) {
 }
 
 func (dec *Decoder) Read(b []byte) error {
-	dec.checkPos(len(b))
+	if err := dec.checkPos(len(b)); err != nil {
+		return err
+	}
 	copy(b[:], dec.buf[dec.pos:])
 	dec.incPos(len(b))
 	return nil
@@ -253,7 +256,11 @@ func (dec *Decoder) UnpackBytes() ([]byte, error) {
 	if err != nil {
 		return nil, newError(err)
 	}
-	dec.checkPos(length)
+
+	if err := dec.checkPos(length); err != nil {
+		return nil, err
+	}
+
 	buf := make([]byte, length)
 	copy(buf, dec.buf[dec.pos:dec.pos+length])
 	dec.incPos(length)
