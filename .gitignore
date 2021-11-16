@@ -1,5 +1,5 @@
-libuuoskit.a
-libuuoskit.h
+libpyeoskit.a
+libpyeoskit.h
 
 *.abi
 *.wasm
