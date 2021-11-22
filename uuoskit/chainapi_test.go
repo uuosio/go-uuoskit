@@ -5,6 +5,16 @@ import "testing"
 func TestChainApi(t *testing.T) {
 	GetWallet().Import("test", "5JRYimgLBrRLCBAcjHUWCYRv3asNedTYYzVgmiU4q2ZVxMBiJXL")
 	api := NewChainApi("https://testnode.uuos.network:8443")
+	a, _ := api.GetAccount("eosio")
+	v, _ := a.Get("created")
+	t.Logf("++%v\n", v)
+	v, _ = a.Get("last_code_update")
+	t.Logf("++%v\n", v)
+}
+
+func TestPushAction(t *testing.T) {
+	GetWallet().Import("test", "5JRYimgLBrRLCBAcjHUWCYRv3asNedTYYzVgmiU4q2ZVxMBiJXL")
+	api := NewChainApi("https://testnode.uuos.network:8443")
 	action := NewAction(NewName("eosio.token"),
 		NewName("transfer"),
 		[]PermissionLevel{{NewName("helloworld11"), NewName("active")}},

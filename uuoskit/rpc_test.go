@@ -30,7 +30,7 @@ func TestGetRequiredKeys(t *testing.T) {
 	tx.AddAction(action)
 
 	args := GetRequiredKeysArgs{tx, GetWallet().GetPublicKeys()}
-	ret, err := rpc.GetRequiredKeys(args)
+	ret, err := rpc.GetRequiredKeys(&args)
 	if err != nil {
 		panic(err)
 	}

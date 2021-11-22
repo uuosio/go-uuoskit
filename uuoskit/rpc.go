@@ -28,6 +28,10 @@ type GetRequiredKeysArgs struct {
 	AvailableKeys []string     `json:"available_keys"`
 }
 
+type GetAccountArgs struct {
+	AccountName string `json:"account_name"`
+}
+
 //required_keys
 type GetRequiredKeysResult struct {
 	RequiredKeys []string `json:"required_keys"`
@@ -77,7 +81,26 @@ func (r *Rpc) GetInfo() (*ChainInfo, error) {
 	return &info, nil
 }
 
-func (r *Rpc) GetRequiredKeys(args GetRequiredKeysArgs) (*GetRequiredKeysResult, error) {
+func (r *Rpc) GetAccount(args *GetAccountArgs) (JsonValue, error) {
+	_args, err := json.Marshal(args)
+	if err != nil {
+		return JsonValue{}, newError(err)
+	}
+
+	result, err := r.Call("chain", "get_account", _args)
+	if err != nil {
+		return JsonValue{}, newError(err)
+	}
+
+	result2 := JsonValue{}
+	err = json.Unmarshal(result, &result2)
+	if err != nil {
+		return JsonValue{}, newError(err)
+	}
+	return result2, nil
+}
+
+func (r *Rpc) GetRequiredKeys(args *GetRequiredKeysArgs) (*GetRequiredKeysResult, error) {
 	_args, err := json.Marshal(args)
 	if err != nil {
 		return nil, newError(err)

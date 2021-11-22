@@ -11,8 +11,10 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-github.com/uuosio/go-secp256k1 v0.1.1-0.20210917123744-d49c27f4703d h1:7CReWYs7kpYJcDSaPosf+0YG+g9thj222iOttCVJaMs=
-github.com/uuosio/go-secp256k1 v0.1.1-0.20210917123744-d49c27f4703d/go.mod h1:by3NqX0tv6dShf+K4zpm+bY7tyhc8TZ/gXrSvsFnMTc=
+github.com/uuosio/go-secp256k1 v0.1.1-0.20211121144610-8a61db29e876 h1:koA4dLC7GZr9YF8pssGJjghK9YPk4+Sx+frPms9zBTE=
+github.com/uuosio/go-secp256k1 v0.1.1-0.20211121144610-8a61db29e876/go.mod h1:by3NqX0tv6dShf+K4zpm+bY7tyhc8TZ/gXrSvsFnMTc=
+github.com/uuosio/go-secp256k1 v0.1.1-0.20211122044802-4a748369e2d0 h1:ezjGJ5IOgq327DW5VrgQFJdL88KXPkihAhIJ8lL+7GE=
+github.com/uuosio/go-secp256k1 v0.1.1-0.20211122044802-4a748369e2d0/go.mod h1:by3NqX0tv6dShf+K4zpm+bY7tyhc8TZ/gXrSvsFnMTc=
 golang.org/x/crypto v0.0.0-20210817164053-32db794688a5/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 h1:7I4JAnoQBe7ZtJcBaYHi5UtiO8tQHbUSXxL+pnGRANg=
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=

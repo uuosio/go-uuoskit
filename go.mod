@@ -6,7 +6,7 @@ require (
 	github.com/go-errors/errors v1.4.1
 	github.com/iancoleman/orderedmap v0.2.0
 	github.com/stretchr/testify v1.7.0
-	github.com/uuosio/go-secp256k1 v0.1.1-0.20211121144610-8a61db29e876
+	github.com/uuosio/go-secp256k1 v0.1.1-0.20211122044802-4a748369e2d0
 )
 
 require (

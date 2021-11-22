@@ -17,6 +17,10 @@ func NewChainApi(rpcUrl string) *ChainApi {
 	return chainApi
 }
 
+func (api *ChainApi) GetAccount(name string) (JsonValue, error) {
+	return api.rpc.GetAccount(&GetAccountArgs{AccountName: name})
+}
+
 func (api *ChainApi) GetTableRows(
 	json bool,
 	code string,
@@ -99,7 +103,7 @@ func (api *ChainApi) DeployContract(account, codeFile string, abiFile string) er
 		Transaction:   tx,
 		AvailableKeys: GetWallet().GetPublicKeys(),
 	}
-	r, err := api.rpc.GetRequiredKeys(args)
+	r, err := api.rpc.GetRequiredKeys(&args)
 	if err != nil {
 		return newError(err)
 	}
@@ -143,7 +147,7 @@ func (api *ChainApi) getRequiredKeys(actions []Action) ([]string, error) {
 		a.Data = []byte{}
 		args.Transaction.AddAction(&a)
 	}
-	r, err := api.rpc.GetRequiredKeys(args)
+	r, err := api.rpc.GetRequiredKeys(&args)
 	if err != nil {
 		return nil, newError(err)
 	}
