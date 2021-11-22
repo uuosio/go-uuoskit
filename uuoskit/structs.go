@@ -316,6 +316,32 @@ func (b *JsonValue) Get(keys ...interface{}) (interface{}, error) {
 	return value, nil
 }
 
+func (b *JsonValue) GetString(keys ...interface{}) (string, error) {
+	v, err := b.Get(keys...)
+	if err != nil {
+		return "", err
+	}
+
+	_v, ok := v.(string)
+	if !ok {
+		return "", newErrorf("value is not a string")
+	}
+	return strings.Trim(_v, "\""), nil
+}
+
+func (b *JsonValue) GetTime(keys ...interface{}) (*time.Time, error) {
+	v, err := b.GetString(keys...)
+	if err != nil {
+		return nil, err
+	}
+
+	t, err := time.Parse("2006-01-02T15:04:05", v)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
 func (b JsonValue) MarshalJSON() ([]byte, error) {
 	switch v := b.value.(type) {
 	case string:
