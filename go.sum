@@ -15,6 +15,8 @@ github.com/uuosio/go-secp256k1 v0.1.1-0.20211121144610-8a61db29e876 h1:koA4dLC7G
 github.com/uuosio/go-secp256k1 v0.1.1-0.20211121144610-8a61db29e876/go.mod h1:by3NqX0tv6dShf+K4zpm+bY7tyhc8TZ/gXrSvsFnMTc=
 github.com/uuosio/go-secp256k1 v0.1.1-0.20211122044802-4a748369e2d0 h1:ezjGJ5IOgq327DW5VrgQFJdL88KXPkihAhIJ8lL+7GE=
 github.com/uuosio/go-secp256k1 v0.1.1-0.20211122044802-4a748369e2d0/go.mod h1:by3NqX0tv6dShf+K4zpm+bY7tyhc8TZ/gXrSvsFnMTc=
+github.com/uuosio/go-secp256k1 v0.1.1-0.20211126152744-0197a5644d59 h1:xAnskf8Q0rTh7b8pDv/d/WFxbryydcmEyKi7sZ7mLbI=
+github.com/uuosio/go-secp256k1 v0.1.1-0.20211126152744-0197a5644d59/go.mod h1:by3NqX0tv6dShf+K4zpm+bY7tyhc8TZ/gXrSvsFnMTc=
 golang.org/x/crypto v0.0.0-20210817164053-32db794688a5/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 h1:7I4JAnoQBe7ZtJcBaYHi5UtiO8tQHbUSXxL+pnGRANg=
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
