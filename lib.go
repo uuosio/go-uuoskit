@@ -456,18 +456,22 @@ func crypto_recover_key_(digest *C.char, signature *C.char) *C.char {
 }
 
 //export crypto_create_key_
-func crypto_create_key_() *C.char {
-	ret := CreateKey()
+func crypto_create_key_(oldPubKeyFormat C.bool) *C.char {
+	ret := CreateKey(bool(oldPubKeyFormat))
 	return renderData(ret)
 }
 
-func CreateKey() map[string]string {
+func CreateKey(oldPubKeyFormat bool) map[string]string {
 	priv := genPrivKey(rand.Reader)
 	_priv := secp256k1.NewPrivateKey(priv)
 
 	ret := make(map[string]string)
 	ret["private"] = _priv.String()
-	ret["public"] = _priv.GetPublicKey().String()
+	if oldPubKeyFormat {
+		ret["public"] = _priv.GetPublicKey().StringEOS()
+	} else {
+		ret["public"] = _priv.GetPublicKey().String()
+	}
 	return ret
 }
 
