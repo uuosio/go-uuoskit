@@ -382,7 +382,7 @@ func (dec *Decoder) Unpack(i interface{}) (n int, err error) {
 			return 0, err
 		}
 		dec.incPos(n)
-		return n, newError(err)
+		return n, nil
 	case *string:
 		n = dec.Pos()
 		*v, err = dec.UnpackString()
