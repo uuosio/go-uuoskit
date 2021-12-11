@@ -228,6 +228,20 @@ func transaction_sign_(idx C.int64_t, pub *C.char) *C.char {
 	return renderData(sign)
 }
 
+//export transaction_digest_
+func transaction_digest_(idx C.int64_t, chainId *C.char) *C.char {
+	if err := validateIndex(idx); err != nil {
+		return renderError(err)
+	}
+
+	_chainId := C.GoString(chainId)
+	digest, err := gPackedTxs[idx].Digest(_chainId)
+	if err != nil {
+		return renderError(err)
+	}
+	return renderData(digest)
+}
+
 //export transaction_sign_by_private_key_
 func transaction_sign_by_private_key_(idx C.int64_t, priv *C.char) *C.char {
 	//	func (t *PackedTransaction) SignByPrivateKey(privKey string, chainId string) (string, error) {
@@ -437,7 +451,7 @@ func crypto_get_public_key_(privateKey *C.char, eosPub C.int) *C.char {
 }
 
 //export crypto_recover_key_
-func crypto_recover_key_(digest *C.char, signature *C.char) *C.char {
+func crypto_recover_key_(digest *C.char, signature *C.char, format C.int) *C.char {
 	_digest, err := hex.DecodeString(C.GoString(digest))
 	if err != nil {
 		return renderError(err)
@@ -452,7 +466,12 @@ func crypto_recover_key_(digest *C.char, signature *C.char) *C.char {
 	if err != nil {
 		return renderError(err)
 	}
-	return renderData(pub.String())
+
+	if format == 1 {
+		return renderData(pub.StringEOS())
+	} else {
+		return renderData(pub.String())
+	}
 }
 
 //export crypto_create_key_
