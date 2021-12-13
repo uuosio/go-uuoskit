@@ -74,6 +74,14 @@ func wallet_import_(name *C.char, priv *C.char) *C.char {
 	return renderData("ok")
 }
 
+//export wallet_remove_
+func wallet_remove_(name *C.char, pubKey *C.char) C.bool {
+	_name := C.GoString(name)
+	_pubKey := C.GoString(pubKey)
+	ret := uuoskit.GetWallet().Remove(_name, _pubKey)
+	return C.bool(ret)
+}
+
 //export wallet_get_public_keys_
 func wallet_get_public_keys_() *C.char {
 	keys := uuoskit.GetWallet().GetPublicKeys()

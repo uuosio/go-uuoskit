@@ -29,6 +29,23 @@ func (w *Wallet) Import(name string, strPriv string) error {
 	return nil
 }
 
+func (w *Wallet) Remove(name string, pubKey string) bool {
+	_pubKey, err := secp256k1.NewPublicKeyFromBase58(pubKey)
+	if err != nil {
+		return false
+	}
+
+	pubKey = _pubKey.StringEOS()
+	if priv, ok := w.keys[pubKey]; ok {
+		for i := 0; i < len(w.keys); i++ {
+			priv.Data[i] = 0
+		}
+		delete(w.keys, pubKey)
+		return true
+	}
+	return false
+}
+
 //GetPublicKeys
 func (w *Wallet) GetPublicKeys() []string {
 	keys := make([]string, 0, len(w.keys))
