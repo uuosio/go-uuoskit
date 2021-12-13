@@ -82,7 +82,6 @@ type ABI struct {
 }
 
 type ABISerializer struct {
-	abiMap         map[string]*ABIStruct
 	baseTypeMap    map[string]bool
 	contractAbiMap map[string]*ABI
 	enc            *Encoder
@@ -102,7 +101,6 @@ func GetABISerializer() *ABISerializer {
 	gSerializer = &ABISerializer{}
 	gSerializer.enc = NewEncoder(1024 * 1024)
 
-	gSerializer.abiMap = make(map[string]*ABIStruct)
 	gSerializer.baseTypeMap = make(map[string]bool)
 	gSerializer.contractAbiMap = make(map[string]*ABI)
 
@@ -111,33 +109,7 @@ func GetABISerializer() *ABISerializer {
 	for _, typeName := range baseTypes {
 		gSerializer.baseTypeMap[typeName] = true
 	}
-
-	abi := ABI{}
-	err := json.Unmarshal([]byte(baseABI), &abi)
-	if err != nil {
-		panic(err)
-	}
-
-	for i := range abi.Structs {
-		s := &abi.Structs[i]
-		gSerializer.abiMap[s.Name] = s
-	}
-
 	return gSerializer
-}
-
-func (t *ABISerializer) GetType(structName string, fieldName string) string {
-	s := t.abiMap[structName]
-	for _, f := range s.Fields {
-		if f.Name == fieldName {
-			return f.Type
-		}
-	}
-
-	if s.Base != "" {
-		return t.GetType(s.Base, fieldName)
-	}
-	return ""
 }
 
 func (t *ABISerializer) SetContractABI(contractName string, abi []byte) error {
@@ -160,7 +132,7 @@ func (t *ABISerializer) SetContractABI(contractName string, abi []byte) error {
 func (t *ABISerializer) PackActionArgs(contractName, actionName string, args []byte) ([]byte, error) {
 	t.contractName = contractName
 
-	t.enc.buf = t.enc.buf[:0]
+	t.enc.Reset()
 
 	m := make(map[string]JsonValue)
 	err := json.Unmarshal(args, &m)
@@ -168,12 +140,12 @@ func (t *ABISerializer) PackActionArgs(contractName, actionName string, args []b
 		return nil, newError(err)
 	}
 
-	abiStruct := t.GetActionStruct(contractName, actionName)
-	if abiStruct == nil {
+	actionTypeName := t.GetActionStructType(contractName, actionName)
+	if actionTypeName == "" {
 		return nil, newErrorf("abi struct not found for %s::%s", contractName, actionName)
 	}
 
-	err = t.PackAbiStruct(contractName, abiStruct, m)
+	err = t.PackAbiStruct(contractName, actionTypeName, m)
 	if err != nil {
 		return nil, newError(err)
 	}
@@ -186,13 +158,14 @@ func (t *ABISerializer) PackActionArgs(contractName, actionName string, args []b
 }
 
 func (t *ABISerializer) UnpackActionArgs(contractName string, actionName string, packedValue []byte) ([]byte, error) {
-	abiStruct := t.GetActionStruct(contractName, actionName)
-	if abiStruct == nil {
+	actionType := t.GetActionStructType(contractName, actionName)
+	if actionType == "" {
 		return nil, newErrorf("unknown action %s::%s", contractName, actionName)
 	}
-
-	result, err := t.UnpackAbiStruct(contractName, abiStruct, packedValue)
-	if result == nil {
+	t.dec = NewDecoder(packedValue)
+	result := orderedmap.New()
+	err := t.UnpackAbiStruct(contractName, actionType, result)
+	if err != nil {
 		return nil, newError(err)
 	}
 	bs, err := json.Marshal(result)
@@ -204,6 +177,7 @@ func (t *ABISerializer) UnpackActionArgs(contractName string, actionName string,
 
 func (t *ABISerializer) PackAbiStructByName(contractName string, structName string, args string) ([]byte, error) {
 	t.enc.Reset()
+
 	t.contractName = contractName
 	m := make(map[string]JsonValue)
 	err := json.Unmarshal([]byte(args), &m)
@@ -211,12 +185,7 @@ func (t *ABISerializer) PackAbiStructByName(contractName string, structName stri
 		return nil, newError(err)
 	}
 
-	s := t.GetAbiStruct(contractName, structName)
-	if s == nil {
-		return nil, newErrorf("abi struct %s not found in %s", structName, contractName)
-	}
-
-	err = t.PackAbiStruct(contractName, s, m)
+	err = t.PackAbiStruct(contractName, structName, m)
 	if err != nil {
 		return nil, newError(err)
 	}
@@ -234,12 +203,7 @@ func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) (
 		return nil, newError(err)
 	}
 
-	abiStruct := t.GetAbiStruct(contractName, abiType)
-	if abiStruct == nil {
-		return nil, newErrorf("abi struct not found for %s::%s", contractName, abiType)
-	}
-
-	err = t.PackAbiStruct(contractName, abiStruct, m)
+	err = t.PackAbiStruct(contractName, abiType, m)
 	if err != nil {
 		return nil, newError(err)
 	}
@@ -252,13 +216,9 @@ func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) (
 }
 
 func (t *ABISerializer) UnpackAbiType(contractName string, abiName string, packedValue []byte) ([]byte, error) {
-	abiStruct := t.GetAbiStruct(contractName, abiName)
-	if abiStruct == nil {
-		return nil, newErrorf("unknown action %s::%s", contractName, abiName)
-	}
-
-	result, err := t.UnpackAbiStruct(contractName, abiStruct, packedValue)
-	if result == nil {
+	result := orderedmap.New()
+	err := t.UnpackAbiStruct(contractName, abiName, result)
+	if err != nil {
 		return nil, newError(err)
 	}
 	bs, err := json.Marshal(result)
@@ -940,7 +900,19 @@ func (t *ABISerializer) GetBaseABIType(contractName string, typ string) (string,
 	return "", false
 }
 
-func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct, m map[string]JsonValue) error {
+func (t *ABISerializer) PackAbiStruct(contractName string, structName string, m map[string]JsonValue) error {
+	abiStruct := t.GetAbiStruct(contractName, structName)
+	if abiStruct == nil {
+		return newErrorf("abi struct %s not found in %s", structName, contractName)
+	}
+
+	if abiStruct.Base != "" {
+		err := t.PackAbiStruct(contractName, abiStruct.Base, m)
+		if err != nil {
+			return newError(err)
+		}
+	}
+
 	for _, v := range abiStruct.Fields {
 		typ := v.Type
 		name := v.Name
@@ -987,18 +959,28 @@ func (t *ABISerializer) PackAbiStruct(contractName string, abiStruct *ABIStruct,
 	return nil
 }
 
-func (t *ABISerializer) UnpackAbiStruct(contractName string, abiStruct *ABIStruct, packedValue []byte) (*orderedmap.OrderedMap, error) {
-	t.dec = NewDecoder(packedValue)
-	result := orderedmap.New()
-	err := t.unpackAbiStruct(contractName, abiStruct, result)
-	if err != nil {
-		return nil, err
+func (t *ABISerializer) UnpackAbiStruct(contractName string, actionType string, result *orderedmap.OrderedMap) error {
+	abiStruct := t.GetAbiStruct(contractName, actionType)
+	if abiStruct == nil {
+		return newErrorf("abi struct %s not found in %s", actionType, contractName)
 	}
-	return result, nil
+
+	if abiStruct.Base != "" {
+		err := t.UnpackAbiStruct(contractName, abiStruct.Base, result)
+		if err != nil {
+			return newError(err)
+		}
+	}
+
+	err := t.unpackAbiStructFields(contractName, abiStruct.Fields, result)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruct, result *orderedmap.OrderedMap) error {
-	for _, v := range abiStruct.Fields {
+func (t *ABISerializer) unpackAbiStructFields(contractName string, fields []ABIStructField, result *orderedmap.OrderedMap) error {
+	for _, v := range fields {
 		typ := v.Type
 		name := v.Name
 
@@ -1039,7 +1021,7 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 		if subStruct != nil {
 			subResult := orderedmap.New()
 			result.Set(name, subResult)
-			err := t.unpackAbiStruct(contractName, subStruct, subResult)
+			err := t.UnpackAbiStruct(contractName, typ, subResult)
 			if err != nil {
 				return newError(err)
 			}
@@ -1056,17 +1038,6 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 		if err != nil {
 			return newError(err)
 		}
-		if _, ok := t.baseTypeMap[typ]; ok {
-			for i := 0; i < count; i++ {
-				v, err := t.unpackAbiStructField(typ)
-				if err != nil {
-					return newError(err)
-				}
-				arr = append(arr, v)
-			}
-			result.Set(name, arr)
-			continue
-		}
 
 		subStruct = t.GetAbiStruct(contractName, typ)
 		if subStruct == nil {
@@ -1074,7 +1045,7 @@ func (t *ABISerializer) unpackAbiStruct(contractName string, abiStruct *ABIStruc
 		}
 		for i := 0; i < count; i++ {
 			subResult := orderedmap.New()
-			err := t.unpackAbiStruct(contractName, subStruct, subResult)
+			err := t.UnpackAbiStruct(contractName, typ, subResult)
 			if err != nil {
 				return newError(err)
 			}
@@ -1103,11 +1074,7 @@ func (t *ABISerializer) ParseAbiValue(typ string, abiValue JsonValue) error {
 			return newError(err)
 		}
 	case map[string]JsonValue:
-		s := t.GetAbiStruct(t.contractName, typ)
-		if s == nil {
-			return newErrorf("Unknown ABI type %s", typ)
-		}
-		err := t.PackAbiStruct(t.contractName, s, v)
+		err := t.PackAbiStruct(t.contractName, typ, v)
 		if err != nil {
 			return newError(err)
 		}
@@ -1147,11 +1114,7 @@ func (t *ABISerializer) GetAbiStruct(contractName string, structName string) *AB
 			return s
 		}
 	}
-	s, ok := t.abiMap[structName]
-	if !ok {
-		return nil
-	}
-	return s
+	return nil
 }
 
 func (t *ABISerializer) GetActionStruct(contractName string, actionName string) *ABIStruct {
@@ -1178,8 +1141,11 @@ func (t *ABISerializer) GetActionStruct(contractName string, actionName string) 
 	return nil
 }
 
-func (t *ABISerializer) GetActionStructName(contractName string, actionName string) string {
+func (t *ABISerializer) GetActionStructType(contractName string, actionName string) string {
 	abi := t.contractAbiMap[contractName]
+	if abi == nil {
+		return ""
+	}
 	for i := range abi.Actions {
 		action := &abi.Actions[i]
 		if action.Name == actionName {

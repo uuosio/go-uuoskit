@@ -137,6 +137,10 @@ func (dec *Decoder) Pos() int {
 	return dec.pos
 }
 
+func (dec *Decoder) Remains() []byte {
+	return dec.buf[dec.pos:]
+}
+
 func (dec *Decoder) IsEnd() bool {
 	return dec.pos >= len(dec.buf)
 }

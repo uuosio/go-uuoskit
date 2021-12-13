@@ -81,19 +81,12 @@ func TestPackTransaction(t *testing.T) {
 
 func TestAbi(t *testing.T) {
 	serializer := GetABISerializer()
-	fieldType := serializer.GetType("transaction", "expiration")
-	t.Log("+++++++fieldType:", fieldType)
-
-	fieldType = serializer.GetType("transaction", "transaction_extensions")
-	t.Log("+++++++fieldType:", fieldType)
 
 	strAbi, err := os.ReadFile("data/eosio.token.abi")
 	if err != nil {
 		panic(err)
 	}
 	serializer.SetContractABI("hello", strAbi)
-	actionStruct := serializer.GetActionStructName("hello", "transfer")
-	t.Log("+++++++actionType:", actionStruct)
 
 	args := `{"from": "hello", "to": "alice", "quantity": "1.0000 EOS", "memo": "transfer from alice"}`
 	buf, err := serializer.PackActionArgs("hello", "transfer", []byte(args))
