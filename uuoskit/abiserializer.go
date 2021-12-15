@@ -755,7 +755,7 @@ func (t *ABISerializer) unpackAbiStructField(typ string) (interface{}, error) {
 		}
 		pub := secp256k1.PublicKey{}
 		copy(pub.Data[:], v[1:])
-		return pub.String(), nil
+		return pub.StringEOS(), nil
 	case "signature":
 		v := make([]byte, 66)
 		err := t.dec.Read(v)
