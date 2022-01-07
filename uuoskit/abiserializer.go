@@ -1039,6 +1039,19 @@ func (t *ABISerializer) unpackAbiStructFields(contractName string, fields []ABIS
 			return newError(err)
 		}
 
+		//try to unpack inner abi type
+		if _, ok := t.baseTypeMap[typ]; ok {
+			for i := 0; i < count; i++ {
+				v, err := t.unpackAbiStructField(typ)
+				if err != nil {
+					return newError(err)
+				}
+				arr = append(arr, v)
+			}
+			result.Set(name, arr)
+			continue
+		}
+
 		subStruct = t.GetAbiStruct(contractName, typ)
 		if subStruct == nil {
 			return newErrorf("unknown type %s", typ)
