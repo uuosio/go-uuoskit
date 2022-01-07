@@ -216,6 +216,7 @@ func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) (
 }
 
 func (t *ABISerializer) UnpackAbiType(contractName string, abiName string, packedValue []byte) ([]byte, error) {
+	t.dec = NewDecoder(packedValue)
 	result := orderedmap.New()
 	err := t.UnpackAbiStruct(contractName, abiName, result)
 	if err != nil {
@@ -1006,14 +1007,14 @@ func (t *ABISerializer) unpackAbiStructFields(contractName string, fields []ABIS
 		if baseName, ok := t.GetBaseName(contractName, typ); ok {
 			typ = baseName
 		}
-
 		//try to unpack inner abi type
 		if _, ok := t.baseTypeMap[typ]; ok {
 			v, err := t.unpackAbiStructField(typ)
-			if err == nil {
-				result.Set(name, v)
-				continue
+			if err != nil {
+				return err
 			}
+			result.Set(name, v)
+			continue
 		}
 
 		//try to unpack Abi struct
