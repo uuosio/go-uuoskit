@@ -365,7 +365,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		t.enc.PackUint64(uint64(n))
 	case "int128", "uint128", "float128":
 		if vv, ok := StripString(v); ok {
-			if v[:2] != "0x" {
+			if vv[:2] != "0x" {
 				return newErrorf("invalid %s, value: %s", typ, vv)
 			}
 
