@@ -50,3 +50,9 @@ func newErrorf(format string, args ...interface{}) error {
 		return errors.New(errMsg)
 	}
 }
+
+func reverseBytes(aa []byte) {
+	for i, j := 0, len(aa)-1; i < j; i, j = i+1, j-1 {
+		aa[i], aa[j] = aa[j], aa[i]
+	}
+}

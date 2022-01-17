@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -363,30 +364,54 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 		}
 		t.enc.PackUint64(uint64(n))
 	case "int128", "uint128", "float128":
-		v, ok := StripString(v)
-		if !ok {
-			return newErrorf("invalid %s, value: %s", typ, v)
-		}
+		if vv, ok := StripString(v); ok {
+			if v[:2] != "0x" {
+				return newErrorf("invalid %s, value: %s", typ, vv)
+			}
 
-		if v[:2] != "0x" {
-			return newErrorf("invalid %s, value: %s", typ, v)
-		}
+			vv = vv[2:]
+			if len(vv) != 32 {
+				return newErrorf("invalid %s, %s, should be 0x followed by 32 hex character", typ, vv)
+			}
 
-		v = v[2:]
-		if len(v) != 32 {
-			return newErrorf("invalid %s, %s, should be 0x followed by 32 hex character", typ, v)
+			bs, err := hex.DecodeString(vv)
+			if err != nil {
+				return newError(err)
+			}
+			if len(bs) > 16 {
+				return newErrorf("invalid int128 value: %s", vv)
+			}
+			buf := make([]byte, 16)
+			reverseBytes(bs)
+			copy(buf[:], bs)
+			t.enc.WriteBytes(buf)
+		} else {
+			n := new(big.Int)
+			n, ok := n.SetString(v, 10)
+			if !ok {
+				return newErrorf("invalid %s, value: %s", typ, v)
+			}
+			bs := n.Bytes()
+			if len(bs) > 16 {
+				return newErrorf("invalid %s, value: %s", typ, v)
+			}
+			if n.Sign() < 0 {
+				if typ == "uint128" || typ == "float128" {
+					return newErrorf("invalid %s, value: %s", typ, v)
+				}
+				m := new(big.Int)
+				m.SetBytes([]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
+				m.Sub(m, n.Abs(n))
+				tmp := &big.Int{}
+				tmp.SetUint64(1)
+				m.Add(m, tmp)
+				bs = m.Bytes()
+			}
+			buf := make([]byte, 16)
+			reverseBytes(bs)
+			copy(buf[:], bs)
+			t.enc.WriteBytes(buf)
 		}
-
-		bs, err := hex.DecodeString(v)
-		if err != nil {
-			return newError(err)
-		}
-		if len(bs) > 16 {
-			return newErrorf("invalid int128 value: %s", v)
-		}
-		buf := make([]byte, 16)
-		copy(buf[:], bs)
-		t.enc.WriteBytes(buf)
 	case "varint32":
 		n, err := StringToInt(v)
 		if err != nil {
@@ -670,6 +695,7 @@ func (t *ABISerializer) unpackAbiStructField(typ string) (interface{}, error) {
 		if err != nil {
 			return nil, newError(err)
 		}
+		reverseBytes(buf[:])
 		return "0x" + hex.EncodeToString(buf[:]), nil
 	case "varint32":
 		v, err := t.dec.UnpackVarInt32()
