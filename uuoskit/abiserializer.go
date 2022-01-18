@@ -370,7 +370,7 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 			}
 
 			vv = vv[2:]
-			if len(vv) != 32 {
+			if typ == "float128" && len(vv) != 32 {
 				return newErrorf("invalid %s, %s, should be 0x followed by 32 hex character", typ, vv)
 			}
 
@@ -379,13 +379,18 @@ func (t *ABISerializer) ParseAbiStringValue(typ string, v string) error {
 				return newError(err)
 			}
 			if len(bs) > 16 {
-				return newErrorf("invalid int128 value: %s", vv)
+				return newErrorf("invalid %s, value: %s", typ, v)
 			}
 			buf := make([]byte, 16)
-			reverseBytes(bs)
+			if typ != "float128" {
+				reverseBytes(bs)
+			}
 			copy(buf[:], bs)
 			t.enc.WriteBytes(buf)
 		} else {
+			if typ == "float128" {
+				return newErrorf("invalid %s, value: %s", typ, v)
+			}
 			n := new(big.Int)
 			n, ok := n.SetString(v, 10)
 			if !ok {
@@ -695,7 +700,9 @@ func (t *ABISerializer) unpackAbiStructField(typ string) (interface{}, error) {
 		if err != nil {
 			return nil, newError(err)
 		}
-		reverseBytes(buf[:])
+		if typ != "float128" {
+			reverseBytes(buf[:])
+		}
 		return "0x" + hex.EncodeToString(buf[:]), nil
 	case "varint32":
 		v, err := t.dec.UnpackVarInt32()
