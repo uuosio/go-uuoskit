@@ -1,6 +1,9 @@
 package uuoskit
 
-import "unsafe"
+import (
+	"sort"
+	"unsafe"
+)
 
 type PermissionLevel struct {
 	Actor      Name `json:"actor"`
@@ -128,4 +131,7 @@ func (a *Action) Size() int {
 
 func (a *Action) AddPermission(actor Name, permission Name) {
 	a.Authorization = append(a.Authorization, PermissionLevel{actor, permission})
+	sort.Slice(a.Authorization, func(i, j int) bool {
+		return a.Authorization[i].Actor.N < a.Authorization[j].Actor.N
+	})
 }
