@@ -79,7 +79,7 @@ type ABI struct {
 	RicardianClauses []ClausePair   `json:"ricardian_clauses"`
 	ErrorMessages    []ErrorMessage `json:"error_messages"`
 	AbiExtensions    []AbiExtension `json:"abi_extensions"`
-	// Variants         []VariantDef   `json:"variants"`
+	Variants         []VariantDef   `json:"variants"`
 }
 
 type ABISerializer struct {
@@ -1277,6 +1277,18 @@ func (t *ABISerializer) PackABI(strABI string) ([]byte, error) {
 		enc.PackUint16(a.Type)
 		enc.PackBytes(a.Extension)
 	}
+
+	enc.PackVarUint32(uint32(len(abi.Variants)))
+	for i := range abi.Variants {
+		a := &abi.Variants[i]
+		enc.PackString(a.Name)
+		enc.PackVarUint32(uint32(len(a.Types)))
+		for i := range a.Types {
+			tp := a.Types[i]
+			enc.PackString(tp)
+		}
+	}
+
 	return enc.Bytes(), nil
 }
 
@@ -1290,6 +1302,7 @@ func (t *ABISerializer) UnpackABI(rawAbi []byte) (string, error) {
 	abi.RicardianClauses = []ClausePair{}
 	abi.ErrorMessages = []ErrorMessage{}
 	abi.AbiExtensions = []AbiExtension{}
+	abi.Variants = []VariantDef{}
 
 	version, err := dec.UnpackString()
 	if err != nil {
@@ -1437,23 +1450,6 @@ func (t *ABISerializer) UnpackABI(rawAbi []byte) (string, error) {
 		return "", err
 	}
 	for ; length > 0; length -= 1 {
-		a := &ErrorMessage{}
-		a.ErrorCode, err = dec.UnpackUint64()
-		if err != nil {
-			return "", err
-		}
-		a.ErrorMsg, err = dec.UnpackString()
-		if err != nil {
-			return "", err
-		}
-		abi.ErrorMessages = append(abi.ErrorMessages, *a)
-	}
-
-	length, err = dec.UnpackVarUint32()
-	if err != nil {
-		return "", err
-	}
-	for ; length > 0; length -= 1 {
 		errCode, err := dec.UnpackUint64()
 		if err != nil {
 			return "", err
@@ -1486,6 +1482,33 @@ func (t *ABISerializer) UnpackABI(rawAbi []byte) (string, error) {
 		}
 		a.Extension = ext
 		abi.AbiExtensions = append(abi.AbiExtensions, a)
+	}
+
+	length, err = dec.UnpackVarUint32()
+	if err != nil {
+		return "", err
+	}
+
+	for ; length > 0; length -= 1 {
+		v := VariantDef{}
+		v.Name, err = dec.UnpackString()
+		if err != nil {
+			return "", err
+		}
+
+		length2, err := dec.UnpackVarUint32()
+		if err != nil {
+			return "", err
+		}
+
+		for ; length2 > 0; length2 -= 1 {
+			tp, err := dec.UnpackString()
+			if err != nil {
+				return "", err
+			}
+			v.Types = append(v.Types, tp)
+		}
+		abi.Variants = append(abi.Variants, v)
 	}
 
 	ret, err := json.Marshal(abi)
