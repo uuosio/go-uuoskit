@@ -261,6 +261,15 @@ func parseSubValue(subValue JsonValue) interface{} {
 	return subValue
 }
 
+func (b *JsonValue) GetStringValue() (string, bool) {
+	switch v := b.value.(type) {
+	case string:
+		return strings.Trim(v, "\""), true
+	default:
+		return "", false
+	}
+}
+
 //return string, []JsonValue, or map[string]JsonValue
 func (b *JsonValue) Get(keys ...interface{}) (interface{}, error) {
 	if len(keys) == 0 {

@@ -3,6 +3,7 @@ package uuoskit
 import (
 	"encoding/hex"
 	"io/ioutil"
+	"log"
 
 	"fmt"
 	"testing"
@@ -719,4 +720,81 @@ func TestAbiTypeDefine(t *testing.T) {
 		t.Error(err)
 	}
 	t.Log(hex.EncodeToString(r))
+}
+
+func TestVariant(t *testing.T) {
+	abi := `
+	{
+		"version": "eosio::abi/1.1",
+		"structs": [
+		  {
+			"name": "test",
+			"base": "",
+			"fields": [
+			  {
+				"name": "a",
+				"type": "MyVariant"
+			  },
+			  {
+				"name": "b",
+				"type": "MyVariant"
+			  }
+			]
+		  },
+		  {
+			"name": "test2",
+			"base": "",
+			"fields": []
+		  }
+		],
+		"types": [],
+		"actions": [
+		  {
+			"name": "test",
+			"type": "test",
+			"ricardian_contract": ""
+		  },
+		  {
+			"name": "test2",
+			"type": "test2",
+			"ricardian_contract": ""
+		  }
+		],
+		"tables": [],
+		"ricardian_clauses": [],
+		"variants": [
+		  {
+			"name": "MyVariant",
+			"types": [
+			  "uint64",
+			  "asset"
+			]
+		  }
+		],
+		"abi_extensions": [],
+		"error_messages": []
+	  }
+	`
+	err := GetABISerializer().SetContractABI("test", []byte(abi))
+	if err != nil {
+		t.Error(err)
+	}
+
+	args := `{
+		"a": ["uint64", 10],
+		"b": ["asset", "1.0000 EOS"]
+	}
+	`
+	log.Printf("+++++++++=hello\n")
+	r, err := GetABISerializer().PackActionArgs("test", "test", []byte(args))
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(hex.EncodeToString(r))
+
+	r, err = GetABISerializer().UnpackActionArgs("test", "test", r)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%s", string(r))
 }

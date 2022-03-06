@@ -105,7 +105,7 @@ func (t *ABI) PackAbiType(abiType string, args []byte) ([]byte, error) {
 	return enc.GetBytes(), nil
 }
 
-func (t *ABI) UnpackAbiType(contractName string, abiName string, packedValue []byte) ([]byte, error) {
+func (t *ABI) UnpackAbiType(abiName string, packedValue []byte) ([]byte, error) {
 	dec := NewDecoder(packedValue)
 	result := orderedmap.New()
 	err := t.UnpackAbiStruct(dec, abiName, result)
@@ -868,7 +868,27 @@ func (t *ABI) unpackAbiStructFields(dec *Decoder, fields []ABIStructField, resul
 			}
 			continue
 		}
+		//try to unpack variant type
+		if v, ok := t.GetVariantType(typ); ok {
+			index, err := dec.UnpackUint8()
+			if err != nil {
+				return err
+			}
 
+			if int(index) >= len(v.Types) {
+				return newErrorf("invalid variant index %d", index)
+			}
+			tp := v.Types[int(index)]
+			arr := make([]interface{}, 0)
+			arr = append(arr, tp)
+			value, err := t.unpackAbiStructField(dec, tp)
+			if err != nil {
+				return err
+			}
+			arr = append(arr, value)
+			result.Set(name, arr)
+			continue
+		}
 		//try to unpack array
 		if !strings.HasSuffix(typ, "[]") {
 			return newErrorf("unknown type %s", typ)
@@ -923,9 +943,31 @@ func (t *ABI) PackAbiValue(enc *Encoder, typ string, abiValue JsonValue) error {
 			return newError(err)
 		}
 	case []JsonValue:
-		err := t.PackArrayAbiValue(enc, typ, v)
-		if err != nil {
-			return newError(err)
+		if varType, ok := t.GetVariantType(typ); ok {
+			if len(v) != 2 {
+				return newErrorf("Invalid variant value %v", v)
+			}
+			innerType, ok := v[0].GetStringValue()
+			if !ok {
+				return newErrorf("+++++Invalid variant value %v", v)
+			}
+			found := false
+			for i, variantType := range varType.Types {
+				if variantType == innerType {
+					enc.PackUint8(uint8(i))
+					t.PackAbiValue(enc, variantType, v[1])
+					found = true
+					break
+				}
+			}
+			if !found {
+				return newErrorf("type %s not found in variant %v", innerType, typ)
+			}
+		} else {
+			err := t.PackArrayAbiValue(enc, typ, v)
+			if err != nil {
+				return newError(err)
+			}
 		}
 	case map[string]JsonValue:
 		err := t.PackAbiStruct(enc, typ, v)
