@@ -90,6 +90,22 @@ func (t *ABISerializer) UnpackActionArgs(contractName string, actionName string,
 	return bs, nil
 }
 
+func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) ([]byte, error) {
+	abi, ok := t.contractAbiMap[contractName]
+	if !ok {
+		return nil, newErrorf("contract not found %s", contractName)
+	}
+	return abi.PackAbiType(abiType, args)
+}
+
+func (t *ABISerializer) UnpackAbiType(contractName, abiName string, packedValue []byte) ([]byte, error) {
+	abi, ok := t.contractAbiMap[contractName]
+	if !ok {
+		return nil, newErrorf("contract not found %s", contractName)
+	}
+	return abi.UnpackAbiType(abiName, packedValue)
+}
+
 func (t *ABISerializer) PackABI(strABI string) ([]byte, error) {
 	abi := &ABI{}
 	err := json.Unmarshal([]byte(strABI), abi)
