@@ -1,7 +1,6 @@
 package uuoskit
 
 import (
-	"sort"
 	"unsafe"
 )
 
@@ -131,7 +130,4 @@ func (a *Action) Size() int {
 
 func (a *Action) AddPermission(actor Name, permission Name) {
 	a.Authorization = append(a.Authorization, PermissionLevel{actor, permission})
-	sort.Slice(a.Authorization, func(i, j int) bool {
-		return a.Authorization[i].Actor.N < a.Authorization[j].Actor.N
-	})
 }

@@ -203,7 +203,7 @@ func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data 
 		}
 	}
 
-	perms := make(map[string]string)
+	perms := make([]map[string]string, 0, 4)
 	err = json.Unmarshal([]byte(_permissions), &perms)
 	if err != nil {
 		return renderError(err)
@@ -211,8 +211,10 @@ func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data 
 
 	action := uuoskit.NewAction(uuoskit.NewName(_account), uuoskit.NewName(_name))
 	action.SetData(__data)
-	for k, v := range perms {
-		action.AddPermission(uuoskit.NewName(k), uuoskit.NewName(v))
+	for _, item := range perms {
+		for k, v := range item {
+			action.AddPermission(uuoskit.NewName(k), uuoskit.NewName(v))
+		}
 	}
 
 	err = gPackedTxs[idx].AddAction(action)
