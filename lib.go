@@ -7,6 +7,14 @@ package main
 // {
 //	    return pp[i];
 // }
+//typedef char *(*fn_malloc)(uint64_t size);
+//static fn_malloc g_malloc = NULL;
+//static void set_malloc_fn(fn_malloc fn) {
+//	g_malloc = fn;
+//}
+//static char *cmalloc(uint64_t size) {
+//	return 	g_malloc(size);
+//}
 import "C"
 
 import (
@@ -29,7 +37,7 @@ import (
 func renderData(data interface{}) *C.char {
 	ret := map[string]interface{}{"data": data}
 	result, _ := json.Marshal(ret)
-	return C.CString(string(result))
+	return CString(string(result))
 }
 
 func renderError(err error) *C.char {
@@ -37,23 +45,32 @@ func renderError(err error) *C.char {
 		errMsg := _err.ErrorStack()
 		ret := map[string]interface{}{"error": errMsg}
 		result, _ := json.Marshal(ret)
-		return C.CString(string(result))
+		return CString(string(result))
 	} else {
 		pc, fn, line, _ := runtime.Caller(1)
 		errMsg := fmt.Sprintf("[error] in %s[%s:%d] %v", runtime.FuncForPC(pc).Name(), fn, line, err)
 		ret := map[string]interface{}{"error": errMsg}
 		result, _ := json.Marshal(ret)
-		return C.CString(string(result))
+		return CString(string(result))
 	}
 }
 
 //export init_
-func init_() {
+func init_(malloc C.fn_malloc) {
+	C.set_malloc_fn(malloc)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	secp256k1.Init()
 	if nil == uuoskit.GetABISerializer() {
 		panic("abi serializer not initialized")
 	}
+}
+
+func CString(s string) *C.char {
+	p := C.cmalloc(C.uint64_t(len(s) + 1))
+	pp := (*[1 << 30]byte)(unsafe.Pointer(p))
+	copy(pp[:], s)
+	pp[len(s)] = 0
+	return (*C.char)(p)
 }
 
 //export say_hello_
@@ -393,7 +410,7 @@ func s2n_(s *C.char) C.uint64_t {
 
 //export n2s_
 func n2s_(n C.uint64_t) *C.char {
-	return C.CString(uuoskit.N2S(uint64(n)))
+	return CString(uuoskit.N2S(uint64(n)))
 }
 
 //symbol to uint64
