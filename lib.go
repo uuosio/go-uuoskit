@@ -125,11 +125,11 @@ var gPackedTxs []*uuoskit.PackedTransaction
 
 func validateIndex(idx C.int64_t) error {
 	if idx < 0 || idx >= C.int64_t(len(gPackedTxs)) {
-		return fmt.Errorf("invalid idx")
+		return fmt.Errorf("invalid transaction index %d", idx)
 	}
 
 	if gPackedTxs[idx] == nil {
-		return fmt.Errorf("invalid idx")
+		return fmt.Errorf("transaction at index %d is nil!", idx)
 	}
 
 	return nil
