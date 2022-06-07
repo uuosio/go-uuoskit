@@ -47,3 +47,15 @@ func NewChainInfo(info []byte) (*ChainInfo, error) {
 	}
 	return chainInfo, nil
 }
+
+type ChainContext struct {
+	ABISerializer *ABISerializer
+	PackedTxs     []*PackedTransaction
+}
+
+func NewChainContext() *ChainContext {
+	return &ChainContext{
+		ABISerializer: NewABISerializer(),
+		PackedTxs:     make([]*PackedTransaction, 0, 10),
+	}
+}

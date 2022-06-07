@@ -21,7 +21,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -60,9 +59,6 @@ func init_(malloc C.fn_malloc) {
 	C.set_malloc_fn(malloc)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	secp256k1.Init()
-	if nil == uuoskit.GetABISerializer() {
-		panic("abi serializer not initialized")
-	}
 }
 
 func CString(s string) *C.char {
@@ -121,79 +117,136 @@ func wallet_sign_digest_(digest *C.char, pubKey *C.char) *C.char {
 	return renderData(sign.String())
 }
 
-var gPackedTxs []*uuoskit.PackedTransaction
+var gChainContexts []*uuoskit.ChainContext
 
-func validateIndex(idx C.int64_t) error {
-	if idx < 0 || idx >= C.int64_t(len(gPackedTxs)) {
+//export new_chain_context_
+func new_chain_context_() C.int64_t {
+	if gChainContexts == nil {
+		gChainContexts = make([]*uuoskit.ChainContext, 0, 10)
+	}
+
+	if len(gChainContexts) >= 64 {
+		return C.int64_t(-1)
+	}
+
+	for i := 0; i < len(gChainContexts); i++ {
+		if gChainContexts[i] == nil {
+			gChainContexts[i] = uuoskit.NewChainContext()
+			return C.int64_t(i)
+		}
+	}
+	gChainContexts = append(gChainContexts, uuoskit.NewChainContext())
+	return C.int64_t(len(gChainContexts) - 1)
+}
+
+//export chain_context_free_
+func chain_context_free_(_index C.int64_t) *C.char {
+	index := int(_index)
+	if index < 0 || index >= len(gChainContexts) {
+		return renderError(fmt.Errorf("bad chain index", index))
+	}
+	gChainContexts[int(index)] = nil
+	return renderData("ok")
+}
+
+func getChainContext(index int) (*uuoskit.ChainContext, error) {
+	if index < 0 || index >= len(gChainContexts) {
+		return nil, fmt.Errorf("invalid chain index", index)
+	}
+	return gChainContexts[int(index)], nil
+}
+
+func validateIndex(packedTxs []*uuoskit.PackedTransaction, idx C.int64_t) error {
+	if idx < 0 || idx >= C.int64_t(len(packedTxs)) {
 		return fmt.Errorf("invalid transaction index %d", idx)
 	}
 
-	if gPackedTxs[idx] == nil {
+	if packedTxs[idx] == nil {
 		return fmt.Errorf("transaction at index %d is nil!", idx)
 	}
 
 	return nil
 }
 
-func addPackedTx(packedTx *uuoskit.PackedTransaction) C.int64_t {
-	if gPackedTxs == nil {
-		gPackedTxs = make([]*uuoskit.PackedTransaction, 0, 10)
+func addPackedTx(ctx *uuoskit.ChainContext, packedTx *uuoskit.PackedTransaction) C.int64_t {
+	packedTxs := ctx.PackedTxs
+	if packedTxs == nil {
+		return -1
 	}
 
-	if len(gPackedTxs) >= 1024 {
+	if len(packedTxs) >= 1024 {
 		return C.int64_t(-1)
 	}
 
-	for i := 0; i < len(gPackedTxs); i++ {
-		if gPackedTxs[i] == nil {
-			gPackedTxs[i] = packedTx
+	for i := 0; i < len(packedTxs); i++ {
+		if packedTxs[i] == nil {
+			packedTxs[i] = packedTx
 			return C.int64_t(i)
 		}
 	}
-	gPackedTxs = append(gPackedTxs, packedTx)
-	return C.int64_t(len(gPackedTxs) - 1)
+	ctx.PackedTxs = append(ctx.PackedTxs, packedTx)
+	return C.int64_t(len(ctx.PackedTxs) - 1)
 }
 
 //export transaction_new_
-func transaction_new_(expiration C.int64_t, refBlock *C.char, chainId *C.char) C.int64_t {
+func transaction_new_(chainIndex C.int64_t, expiration C.int64_t, refBlock *C.char, chainId *C.char) C.int64_t {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return C.int64_t(-1)
+	}
 	tx := uuoskit.NewTransaction(int(expiration))
 	tx.SetReferenceBlock(C.GoString(refBlock))
 
 	packedTx := uuoskit.NewPackedTransaction(tx)
 	packedTx.SetChainId(C.GoString(chainId))
 
-	return addPackedTx(packedTx)
+	return addPackedTx(ctx, packedTx)
 }
 
 //export transaction_from_json_
-func transaction_from_json_(tx *C.char, chainId *C.char) *C.char {
+func transaction_from_json_(chainIndex C.int64_t, tx *C.char, chainId *C.char) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
 	_tx := C.GoString(tx)
 	packedTx, err := uuoskit.NewPackedTransactionFromString(_tx)
 	if err != nil {
 		return renderError(err)
 	}
 	packedTx.SetChainId(C.GoString(chainId))
-	i := addPackedTx(packedTx)
+	i := addPackedTx(ctx, packedTx)
 	return renderData(i)
 }
 
 //export transaction_free_
-func transaction_free_(_index C.int64_t) *C.char {
-	index := int(_index)
-	if index < 0 || index >= len(gPackedTxs) {
-		return renderError(errors.New("bad index"))
+func transaction_free_(chainIndex C.int64_t, _index C.int64_t) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
 	}
-	gPackedTxs[int(index)] = nil
+
+	index := int(_index)
+	if index < 0 || index >= len(ctx.PackedTxs) {
+		return renderError(fmt.Errorf("bad transaction index %d", index))
+	}
+	ctx.PackedTxs[int(index)] = nil
 	return renderData("ok")
 }
 
 //export transaction_set_chain_id_
-func transaction_set_chain_id_(_index C.int64_t, chainId *C.char) *C.char {
+func transaction_set_chain_id_(chainIndex C.int64_t, _index C.int64_t, chainId *C.char) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
 	index := int(_index)
-	if index < 0 || index >= len(gPackedTxs) {
+	if index < 0 || index >= len(ctx.PackedTxs) {
 		return renderError(fmt.Errorf("invalid index"))
 	}
-	err := gPackedTxs[int(index)].SetChainId(C.GoString(chainId))
+	err = ctx.PackedTxs[int(index)].SetChainId(C.GoString(chainId))
 	if err != nil {
 		return renderError(err)
 	}
@@ -201,8 +254,13 @@ func transaction_set_chain_id_(_index C.int64_t, chainId *C.char) *C.char {
 }
 
 //export transaction_add_action_
-func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data *C.char, permissions *C.char) *C.char {
-	if err := validateIndex(idx); err != nil {
+func transaction_add_action_(chainIndex C.int64_t, idx C.int64_t, account *C.char, name *C.char, data *C.char, permissions *C.char) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
+	if err := validateIndex(ctx.PackedTxs, idx); err != nil {
 		return renderError(err)
 	}
 
@@ -212,9 +270,9 @@ func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data 
 	_permissions := C.GoString(permissions)
 
 	var __data []byte
-	__data, err := hex.DecodeString(_data)
+	__data, err = hex.DecodeString(_data)
 	if err != nil {
-		__data, err = uuoskit.GetABISerializer().PackActionArgs(_account, _name, []byte(_data))
+		__data, err = ctx.ABISerializer.PackActionArgs(_account, _name, []byte(_data))
 		if err != nil {
 			return renderError(err)
 		}
@@ -234,7 +292,7 @@ func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data 
 		}
 	}
 
-	err = gPackedTxs[idx].AddAction(action)
+	err = ctx.PackedTxs[idx].AddAction(action)
 	if err != nil {
 		return renderError(err)
 	}
@@ -242,13 +300,18 @@ func transaction_add_action_(idx C.int64_t, account *C.char, name *C.char, data 
 }
 
 //export transaction_sign_
-func transaction_sign_(idx C.int64_t, pub *C.char) *C.char {
-	if err := validateIndex(idx); err != nil {
+func transaction_sign_(chainIndex C.int64_t, idx C.int64_t, pub *C.char) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
+	if err := validateIndex(ctx.PackedTxs, idx); err != nil {
 		return renderError(err)
 	}
 
 	_pub := C.GoString(pub)
-	sign, err := gPackedTxs[idx].Sign(_pub)
+	sign, err := ctx.PackedTxs[idx].Sign(_pub)
 	if err != nil {
 		return renderError(err)
 	}
@@ -256,13 +319,18 @@ func transaction_sign_(idx C.int64_t, pub *C.char) *C.char {
 }
 
 //export transaction_digest_
-func transaction_digest_(idx C.int64_t, chainId *C.char) *C.char {
-	if err := validateIndex(idx); err != nil {
+func transaction_digest_(chainIndex C.int64_t, idx C.int64_t, chainId *C.char) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
+	if err := validateIndex(ctx.PackedTxs, idx); err != nil {
 		return renderError(err)
 	}
 
 	_chainId := C.GoString(chainId)
-	digest, err := gPackedTxs[idx].Digest(_chainId)
+	digest, err := ctx.PackedTxs[idx].Digest(_chainId)
 	if err != nil {
 		return renderError(err)
 	}
@@ -270,13 +338,17 @@ func transaction_digest_(idx C.int64_t, chainId *C.char) *C.char {
 }
 
 //export transaction_sign_by_private_key_
-func transaction_sign_by_private_key_(idx C.int64_t, priv *C.char) *C.char {
-	//	func (t *PackedTransaction) SignByPrivateKey(privKey string, chainId string) (string, error) {
-	if err := validateIndex(idx); err != nil {
+func transaction_sign_by_private_key_(chainIndex C.int64_t, idx C.int64_t, priv *C.char) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
 		return renderError(err)
 	}
 
-	sign, err := gPackedTxs[idx].SignByPrivateKey(C.GoString(priv))
+	if err := validateIndex(ctx.PackedTxs, idx); err != nil {
+		return renderError(err)
+	}
+
+	sign, err := ctx.PackedTxs[idx].SignByPrivateKey(C.GoString(priv))
 	if err != nil {
 		return renderError(err)
 	}
@@ -284,31 +356,40 @@ func transaction_sign_by_private_key_(idx C.int64_t, priv *C.char) *C.char {
 }
 
 //export transaction_pack_
-func transaction_pack_(idx C.int64_t, compress C.int) *C.char {
-	if err := validateIndex(idx); err != nil {
+func transaction_pack_(chainIndex C.int64_t, idx C.int64_t, compress C.int) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
+	if err := validateIndex(ctx.PackedTxs, idx); err != nil {
 		return renderError(err)
 	}
 
 	var result string
 	if compress != 0 {
-		result = gPackedTxs[idx].Pack(true)
+		result = ctx.PackedTxs[idx].Pack(true)
 	} else {
-		result = gPackedTxs[idx].Pack(false)
+		result = ctx.PackedTxs[idx].Pack(false)
 	}
 	return renderData(result)
 }
 
 //export transaction_marshal_
-func transaction_marshal_(idx C.int64_t) *C.char {
-	if err := validateIndex(idx); err != nil {
+func transaction_marshal_(chainIndex C.int64_t, idx C.int64_t) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
 		return renderError(err)
 	}
 
-	result := gPackedTxs[idx].Marshal()
+	if err := validateIndex(ctx.PackedTxs, idx); err != nil {
+		return renderError(err)
+	}
+
+	result := ctx.PackedTxs[idx].Marshal()
 	return renderData(result)
 }
 
-//func (t *Transaction) Unpack(data []byte) (int, error) {
 //export transaction_unpack_
 func transaction_unpack_(data *C.char) *C.char {
 	t := uuoskit.Transaction{}
@@ -326,10 +407,15 @@ func transaction_unpack_(data *C.char) *C.char {
 }
 
 //export abiserializer_set_contract_abi_
-func abiserializer_set_contract_abi_(account *C.char, abi *C.char, length C.int) *C.char {
+func abiserializer_set_contract_abi_(chainIndex C.int64_t, account *C.char, abi *C.char, length C.int) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
 	_account := C.GoString(account)
 	_abi := C.GoBytes(unsafe.Pointer(abi), length)
-	err := uuoskit.GetABISerializer().SetContractABI(_account, _abi)
+	err = ctx.ABISerializer.SetContractABI(_account, _abi)
 	if err != nil {
 		return renderError(err)
 	}
@@ -337,11 +423,16 @@ func abiserializer_set_contract_abi_(account *C.char, abi *C.char, length C.int)
 }
 
 //export abiserializer_pack_action_args_
-func abiserializer_pack_action_args_(contractName *C.char, actionName *C.char, args *C.char, args_len C.int) *C.char {
+func abiserializer_pack_action_args_(chainIndex C.int64_t, contractName *C.char, actionName *C.char, args *C.char, args_len C.int) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
 	_contractName := C.GoString(contractName)
 	_actionName := C.GoString(actionName)
 	_args := C.GoBytes(unsafe.Pointer(args), args_len)
-	result, err := uuoskit.GetABISerializer().PackActionArgs(_contractName, _actionName, _args)
+	result, err := ctx.ABISerializer.PackActionArgs(_contractName, _actionName, _args)
 	if err != nil {
 		return renderError(err)
 	}
@@ -349,7 +440,12 @@ func abiserializer_pack_action_args_(contractName *C.char, actionName *C.char, a
 }
 
 //export abiserializer_unpack_action_args_
-func abiserializer_unpack_action_args_(contractName *C.char, actionName *C.char, args *C.char) *C.char {
+func abiserializer_unpack_action_args_(chainIndex C.int64_t, contractName *C.char, actionName *C.char, args *C.char) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
 	_contractName := C.GoString(contractName)
 	_actionName := C.GoString(actionName)
 	_args := C.GoString(args)
@@ -357,7 +453,7 @@ func abiserializer_unpack_action_args_(contractName *C.char, actionName *C.char,
 	if err != nil {
 		return renderError(err)
 	}
-	result, err := uuoskit.GetABISerializer().UnpackActionArgs(_contractName, _actionName, __args)
+	result, err := ctx.ABISerializer.UnpackActionArgs(_contractName, _actionName, __args)
 	if err != nil {
 		return renderError(err)
 	}
@@ -365,11 +461,16 @@ func abiserializer_unpack_action_args_(contractName *C.char, actionName *C.char,
 }
 
 //export abiserializer_pack_abi_type_
-func abiserializer_pack_abi_type_(contractName *C.char, actionName *C.char, args *C.char, args_len C.int) *C.char {
+func abiserializer_pack_abi_type_(chainIndex C.int64_t, contractName *C.char, actionName *C.char, args *C.char, args_len C.int) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
 	_contractName := C.GoString(contractName)
 	_actionName := C.GoString(actionName)
 	_args := C.GoBytes(unsafe.Pointer(args), args_len)
-	result, err := uuoskit.GetABISerializer().PackAbiType(_contractName, _actionName, _args)
+	result, err := ctx.ABISerializer.PackAbiType(_contractName, _actionName, _args)
 	if err != nil {
 		return renderError(err)
 	}
@@ -377,7 +478,12 @@ func abiserializer_pack_abi_type_(contractName *C.char, actionName *C.char, args
 }
 
 //export abiserializer_unpack_abi_type_
-func abiserializer_unpack_abi_type_(contractName *C.char, actionName *C.char, args *C.char) *C.char {
+func abiserializer_unpack_abi_type_(chainIndex C.int64_t, contractName *C.char, actionName *C.char, args *C.char) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
 	_contractName := C.GoString(contractName)
 	_actionName := C.GoString(actionName)
 	_args := C.GoString(args)
@@ -385,7 +491,7 @@ func abiserializer_unpack_abi_type_(contractName *C.char, actionName *C.char, ar
 	if err != nil {
 		return renderError(err)
 	}
-	result, err := uuoskit.GetABISerializer().UnpackAbiType(_contractName, _actionName, __args)
+	result, err := ctx.ABISerializer.UnpackAbiType(_contractName, _actionName, __args)
 	if err != nil {
 		return renderError(err)
 	}
@@ -393,9 +499,14 @@ func abiserializer_unpack_abi_type_(contractName *C.char, actionName *C.char, ar
 }
 
 //export abiserializer_is_abi_cached_
-func abiserializer_is_abi_cached_(contractName *C.char) C.int {
+func abiserializer_is_abi_cached_(chainIndex C.int64_t, contractName *C.char) C.int {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return 0
+	}
+
 	_contractName := C.GoString(contractName)
-	result := uuoskit.GetABISerializer().IsAbiCached(_contractName)
+	result := ctx.ABISerializer.IsAbiCached(_contractName)
 	if result {
 		return 1
 	} else {
@@ -421,9 +532,14 @@ func sym2n_(str_symbol *C.char, precision C.uint64_t) C.uint64_t {
 }
 
 //export abiserializer_pack_abi_
-func abiserializer_pack_abi_(str_abi *C.char) *C.char {
+func abiserializer_pack_abi_(chainIndex C.int64_t, str_abi *C.char) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
 	_str_abi := C.GoString(str_abi)
-	result, err := uuoskit.GetABISerializer().PackABI(_str_abi)
+	result, err := ctx.ABISerializer.PackABI(_str_abi)
 	if err != nil {
 		return renderError(err)
 	}
@@ -431,9 +547,14 @@ func abiserializer_pack_abi_(str_abi *C.char) *C.char {
 }
 
 //export abiserializer_unpack_abi_
-func abiserializer_unpack_abi_(abi *C.char, length C.int) *C.char {
+func abiserializer_unpack_abi_(chainIndex C.int64_t, abi *C.char, length C.int) *C.char {
+	ctx, err := getChainContext(int(chainIndex))
+	if err != nil {
+		return renderError(err)
+	}
+
 	_abi := C.GoBytes(unsafe.Pointer(abi), length)
-	result, err := uuoskit.GetABISerializer().UnpackABI(_abi)
+	result, err := ctx.ABISerializer.UnpackABI(_abi)
 	if err != nil {
 		return renderError(err)
 	}

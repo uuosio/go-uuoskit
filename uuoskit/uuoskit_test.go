@@ -80,7 +80,7 @@ func TestPackTransaction(t *testing.T) {
 }
 
 func TestAbi(t *testing.T) {
-	serializer := GetABISerializer()
+	serializer := NewABISerializer()
 
 	strAbi, err := os.ReadFile("data/eosio.token.abi")
 	if err != nil {
@@ -157,7 +157,7 @@ func TestAbi(t *testing.T) {
 func TestPackAbiArray(t *testing.T) {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	serializer := GetABISerializer()
+	serializer := NewABISerializer()
 	abi := `{
 		"version": "eosio::abi/1.0",
 		"types": [
@@ -328,13 +328,13 @@ func TestPackAbi(t *testing.T) {
 		"abi_extensions": []
 	}
 	`
-	bin, err := GetABISerializer().PackABI(abi)
+	bin, err := NewABISerializer().PackABI(abi)
 	if err != nil {
 		panic(err)
 	}
 	t.Log(hex.EncodeToString(bin))
 
-	s, err := GetABISerializer().UnpackABI(bin)
+	s, err := NewABISerializer().UnpackABI(bin)
 	if err != nil {
 		panic(err)
 	}
@@ -472,7 +472,7 @@ func TestBinaryExtension(t *testing.T) {
 		"error_messages": []
 	}
 	`
-	serializer := GetABISerializer()
+	serializer := NewABISerializer()
 	serializer.SetContractABI("hello", []byte(abi))
 	args := `{"a": "hello", "b": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "c": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`
 	buf, err := serializer.PackActionArgs("hello", "testext", []byte(args))

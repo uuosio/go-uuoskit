@@ -82,7 +82,7 @@ var gAbi = `{
 func AssertPackAbiValueError(t *testing.T, typ string, value string, expectedErr error) {
 	assert := assert.New(t)
 	_abi := fmt.Sprintf(gAbi, typ)
-	s := GetABISerializer()
+	s := NewABISerializer()
 	s.SetContractABI("test", []byte(_abi))
 
 	_, err := s.PackAbiStructByName("test", "test", fmt.Sprintf(`{"t": %s}`, value))
@@ -93,7 +93,7 @@ func AssertPackAbiValueError(t *testing.T, typ string, value string, expectedErr
 
 func AssertPackAbiValue(t *testing.T, typ string, value string, expected string) {
 	_abi := fmt.Sprintf(gAbi, typ)
-	s := GetABISerializer()
+	s := NewABISerializer()
 	s.SetContractABI("test", []byte(_abi))
 
 	r, err := s.PackAbiStructByName("test", "test", fmt.Sprintf(`{"t": %s}`, value))
@@ -194,7 +194,7 @@ func TestBuyRam(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	s := GetABISerializer()
+	s := NewABISerializer()
 	s.SetContractABI("eosio", abi)
 
 	args := `{"payer": "hello", "receiver": "mixincrossss", "bytes": 10485760}`
@@ -710,12 +710,13 @@ func TestAbiTypeDefine(t *testing.T) {
 	"action_results": [],
 	"kv_tables": {}
 	}`
-	err := GetABISerializer().SetContractABI("eosio", []byte(abi))
+	ser := NewABISerializer()
+	err := ser.SetContractABI("eosio", []byte(abi))
 	if err != nil {
 		t.Error(err)
 	}
 	args := `{"account":"eosio", "vmtype":0, "vmversion":0, "code": "1122"}`
-	r, err := GetABISerializer().PackActionArgs("eosio", "setcode", []byte(args))
+	r, err := ser.PackActionArgs("eosio", "setcode", []byte(args))
 	if err != nil {
 		t.Error(err)
 	}
@@ -775,7 +776,8 @@ func TestVariant(t *testing.T) {
 		"error_messages": []
 	  }
 	`
-	err := GetABISerializer().SetContractABI("test", []byte(abi))
+	ser := NewABISerializer()
+	err := ser.SetContractABI("test", []byte(abi))
 	if err != nil {
 		t.Error(err)
 	}
@@ -786,13 +788,13 @@ func TestVariant(t *testing.T) {
 	}
 	`
 	log.Printf("+++++++++=hello\n")
-	r, err := GetABISerializer().PackActionArgs("test", "test", []byte(args))
+	r, err := ser.PackActionArgs("test", "test", []byte(args))
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log(hex.EncodeToString(r))
 
-	r, err = GetABISerializer().UnpackActionArgs("test", "test", r)
+	r, err = ser.UnpackActionArgs("test", "test", r)
 	if err != nil {
 		t.Error(err)
 	}

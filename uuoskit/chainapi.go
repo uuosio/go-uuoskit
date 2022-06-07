@@ -8,12 +8,13 @@ import (
 )
 
 type ChainApi struct {
-	rpc *Rpc
+	rpc           *Rpc
+	ABISerializer *ABISerializer
 }
 
 func NewChainApi(rpcUrl string) *ChainApi {
 	rpc := NewRpc(rpcUrl)
-	chainApi := &ChainApi{rpc: rpc}
+	chainApi := &ChainApi{rpc: rpc, ABISerializer: NewABISerializer()}
 	return chainApi
 }
 
@@ -61,7 +62,7 @@ func (api *ChainApi) DeployContract(account, codeFile string, abiFile string) er
 		return newError(err)
 	}
 
-	binABI, err := GetABISerializer().PackABI(string(abi))
+	binABI, err := api.ABISerializer.PackABI(string(abi))
 	if err != nil {
 		return newError(err)
 	}
@@ -155,7 +156,7 @@ func (api *ChainApi) getRequiredKeys(actions []Action) ([]string, error) {
 }
 
 func (api *ChainApi) PushActionWithArgs(account, action, args string, actor, permission string) (JsonValue, error) {
-	result, err := GetABISerializer().PackActionArgs(account, action, []byte(args))
+	result, err := api.ABISerializer.PackActionArgs(account, action, []byte(args))
 	if err != nil {
 		return JsonValue{}, err
 	}

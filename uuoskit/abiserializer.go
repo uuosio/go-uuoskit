@@ -11,21 +11,11 @@ type ABISerializer struct {
 	contractName   string
 }
 
-var (
-	gSerializer *ABISerializer = nil
-)
-
-func GetABISerializer() *ABISerializer {
-	if gSerializer != nil {
-		return gSerializer
-	}
-
-	gSerializer = &ABISerializer{}
-	gSerializer.contractAbiMap = make(map[string]*ABI)
-
-	gSerializer.SetContractABI("eosio.token", []byte(eosioTokenAbi))
-
-	return gSerializer
+func NewABISerializer() *ABISerializer {
+	serializer := &ABISerializer{}
+	serializer.contractAbiMap = make(map[string]*ABI)
+	serializer.SetContractABI("eosio.token", []byte(eosioTokenAbi))
+	return serializer
 }
 
 func (t *ABISerializer) SetContractABI(contractName string, abi []byte) error {
