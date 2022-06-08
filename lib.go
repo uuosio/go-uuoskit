@@ -122,11 +122,7 @@ var gChainContexts []*uuoskit.ChainContext
 //export new_chain_context_
 func new_chain_context_() C.int64_t {
 	if gChainContexts == nil {
-		gChainContexts = make([]*uuoskit.ChainContext, 0, 10)
-	}
-
-	if len(gChainContexts) >= 64 {
-		return C.int64_t(-1)
+		gChainContexts = make([]*uuoskit.ChainContext, 0, 64)
 	}
 
 	for i := 0; i < len(gChainContexts); i++ {
@@ -135,6 +131,11 @@ func new_chain_context_() C.int64_t {
 			return C.int64_t(i)
 		}
 	}
+
+	if len(gChainContexts) >= 64 {
+		return C.int64_t(-1)
+	}
+
 	gChainContexts = append(gChainContexts, uuoskit.NewChainContext())
 	return C.int64_t(len(gChainContexts) - 1)
 }
@@ -143,7 +144,7 @@ func new_chain_context_() C.int64_t {
 func chain_context_free_(_index C.int64_t) *C.char {
 	index := int(_index)
 	if index < 0 || index >= len(gChainContexts) {
-		return renderError(fmt.Errorf("bad chain index", index))
+		return renderError(fmt.Errorf("bad chain index %d", index))
 	}
 	gChainContexts[int(index)] = nil
 	return renderData("ok")
@@ -151,7 +152,7 @@ func chain_context_free_(_index C.int64_t) *C.char {
 
 func getChainContext(index int) (*uuoskit.ChainContext, error) {
 	if index < 0 || index >= len(gChainContexts) {
-		return nil, fmt.Errorf("invalid chain index", index)
+		return nil, fmt.Errorf("invalid chain index %d", index)
 	}
 	return gChainContexts[int(index)], nil
 }
@@ -174,16 +175,17 @@ func addPackedTx(ctx *uuoskit.ChainContext, packedTx *uuoskit.PackedTransaction)
 		return -1
 	}
 
-	if len(packedTxs) >= 1024 {
-		return C.int64_t(-1)
-	}
-
 	for i := 0; i < len(packedTxs); i++ {
 		if packedTxs[i] == nil {
 			packedTxs[i] = packedTx
 			return C.int64_t(i)
 		}
 	}
+
+	if len(packedTxs) >= 1024 {
+		return C.int64_t(-1)
+	}
+
 	ctx.PackedTxs = append(ctx.PackedTxs, packedTx)
 	return C.int64_t(len(ctx.PackedTxs) - 1)
 }

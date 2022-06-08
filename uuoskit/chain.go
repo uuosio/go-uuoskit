@@ -56,6 +56,6 @@ type ChainContext struct {
 func NewChainContext() *ChainContext {
 	return &ChainContext{
 		ABISerializer: NewABISerializer(),
-		PackedTxs:     make([]*PackedTransaction, 0, 10),
+		PackedTxs:     make([]*PackedTransaction, 0, 1024),
 	}
 }
