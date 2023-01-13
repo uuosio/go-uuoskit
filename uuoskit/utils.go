@@ -114,26 +114,14 @@ func ParseAsset(v string) ([]byte, bool) {
 		return nil, false
 	}
 	_amount := strings.Split(amount, ".")
-	if len(_amount) != 2 {
+	if len(_amount) > 2 {
 		return nil, false
 	}
 
-	// n, err := strconv.Atoi(_amount[1])
-	// if err != nil {
-	// 	return nil, false
-	// }
-	// log.Println("+++++ok here")
-	// if n != 0 {
-	// 	return nil, false
-	// }
-	precision := len(_amount[1])
-	// __amount, err := strconv.Atoi(_amount[0])
-	// if err != nil {
-	// 	return nil, false
-	// }
-	// if __amount < 0 || __amount > math.MaxInt64 {
-	// 	return nil, false
-	// }
+	precision := 0
+	if len(_amount) == 2 {
+		precision = len(_amount[1])
+	}
 
 	amount = strings.Replace(amount, ".", "", 1)
 	nAmount, err := strconv.ParseInt(amount, 10, 64)
