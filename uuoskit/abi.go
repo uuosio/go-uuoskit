@@ -64,13 +64,13 @@ type VariantDef struct {
 	Types []string `json:"types"`
 }
 
-//std::vector<std::pair<uint16_t, std::vector<char>>>;
+// std::vector<std::pair<uint16_t, std::vector<char>>>;
 type AbiExtension struct {
 	Type      uint16 `json:"type_name"`
 	Extension []byte `json:"extension"`
 }
 
-//{"quantity":"1.0000 EOS","contract":"eosio.token"}
+// {"quantity":"1.0000 EOS","contract":"eosio.token"}
 type AbiExtendedAsset struct {
 	Quantity string `json:"quantity"`
 	Contract string `json:"contract"`
@@ -782,6 +782,14 @@ func (t *ABI) PackAbiStruct(enc *Encoder, structName string, m map[string]JsonVa
 			}
 		}
 
+		for i := range t.Types {
+			v := &t.Types[i]
+			if v.NewTypeName == typ {
+				typ = v.Type
+				break
+			}
+		}
+
 		err := t.PackAbiValue(enc, typ, abiValue)
 		if err == nil {
 			continue
@@ -800,10 +808,10 @@ func (t *ABI) PackAbiStruct(enc *Encoder, structName string, m map[string]JsonVa
 	return nil
 }
 
-func (t *ABI) UnpackAbiStruct(dec *Decoder, actionType string, result *orderedmap.OrderedMap) error {
-	abiStruct := t.GetAbiStruct(actionType)
+func (t *ABI) UnpackAbiStruct(dec *Decoder, structName string, result *orderedmap.OrderedMap) error {
+	abiStruct := t.GetAbiStruct(structName)
 	if abiStruct == nil {
-		return newErrorf("abi struct %s not found", actionType)
+		return newErrorf("abi struct %s not found", structName)
 	}
 
 	if abiStruct.Base != "" {
@@ -931,6 +939,14 @@ func (t *ABI) unpackAbiStructFields(dec *Decoder, fields []ABIStructField, resul
 }
 
 func (t *ABI) PackAbiValue(enc *Encoder, typ string, abiValue JsonValue) error {
+	for i := range t.Types {
+		v := &t.Types[i]
+		if v.NewTypeName == typ {
+			typ = v.Type
+			break
+		}
+	}
+
 	switch v := abiValue.GetValue().(type) {
 	case string:
 		err := t.ParseAbiStringValue(enc, typ, v)
@@ -991,6 +1007,14 @@ func (t *ABI) GetBaseName(structName string) (string, bool) {
 }
 
 func (t *ABI) GetAbiStruct(structName string) *ABIStruct {
+	for i := range t.Types {
+		v := &t.Types[i]
+		if v.NewTypeName == structName {
+			structName = v.Type
+			break
+		}
+	}
+
 	for j := range t.Structs {
 		s := &t.Structs[j]
 		if s.Name == structName {

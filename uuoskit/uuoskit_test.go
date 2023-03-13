@@ -5,6 +5,7 @@ import (
 	"compress/zlib"
 	"encoding/hex"
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -151,7 +152,93 @@ func TestAbi(t *testing.T) {
 			t.Log("+++++++UnpackActionArgs:", string(s))
 		}
 	}
+	abi = `
+	{
+		"version": "eosio::abi/1.1",
+		"types": [],
+		"structs": [
+		  {
+			"name": "test",
+			"base": "",
+			"fields": [
+			  {
+				"name": "v",
+				"type": "MyVariant"
+			  }
+			]
+		  }
+		],
+		"actions": [
+		  {
+			"name": "test",
+			"type": "test",
+			"ricardian_contract": ""
+		  }
+		],
+		"tables": [],
+		"variants": [
+		  {
+			"name": "MyVariant",
+			"types": [
+			  "uint32",
+			  "uint64"
+			]
+		  }
+		],
+		"abi_extensions": [],
+		"error_messages": [],
+		"ricardian_clauses": []
+	  }
+	`
 
+	serializer.SetContractABI("test", []byte(abi))
+	{
+		args := `
+            {"v": ["uint64", 10]}
+        `
+		buf, err := serializer.PackActionArgs("test", "test", []byte(args))
+		if err != nil {
+			panic(err)
+		}
+		t.Logf("+++++++buf: %v", hex.EncodeToString(buf))
+	}
+
+	abi = `
+	`
+
+	fileBytes, err := ioutil.ReadFile("data/atomicassets.abi")
+	if err != nil {
+		panic(err)
+	}
+
+	abi = string(fileBytes)
+
+	serializer.SetContractABI("atomicassets", []byte(abi))
+
+	{
+		args = `
+		{
+			"authorized_editor": "test",
+			"asset_owner": "test",
+			"asset_id": 123,
+			"new_mutable_data": [{
+				"key": "hello",
+				"value": ["uint64", 10]
+			}]
+		}
+		`
+		buf, err := serializer.PackActionArgs("atomicassets", "setassetdata", []byte(args))
+		if err != nil {
+			panic(err)
+		}
+		t.Logf("+++++++buf:%s", hex.EncodeToString(buf))
+
+		ret, err := serializer.UnpackActionArgs("atomicassets", "setassetdata", buf)
+		if err != nil {
+			panic(err)
+		}
+		t.Logf("++++++buf: %s", string(ret))
+	}
 }
 
 func TestPackAbiArray(t *testing.T) {
