@@ -141,9 +141,9 @@ func TestPackAbiType(t *testing.T) {
 	AssertPackAbiValue(t, "uint64", "18446744073709551615", "ffffffffffffffff")
 	AssertPackAbiValue(t, "uint64", "0", "0000000000000000")
 	// "int128"
-	AssertPackAbiValue(t, "int128", `"0x70680300000000000000000000000000"`, "70680300000000000000000000000000")
+	AssertPackAbiValue(t, "int128", `"0x70680300000000000000000000000000"`, "00000000000000000000000000036870")
 	// "uint128"
-	AssertPackAbiValue(t, "uint128", `"0x70680300000000000000000000000000"`, "70680300000000000000000000000000")
+	AssertPackAbiValue(t, "uint128", `"0x70680300000000000000000000000000"`, "00000000000000000000000000036870")
 	// "varint32"
 	AssertPackAbiValue(t, "varint32", "128", "8002")
 	// "varuint32"
@@ -158,9 +158,10 @@ func TestPackAbiType(t *testing.T) {
 	AssertPackAbiValue(t, "float128", `"0x70680300000000000000000000000000"`, "70680300000000000000000000000000")
 
 	// "time_point"
+	AssertPackAbiValue(t, "time_point", `"2023-03-10T14:44:30"`, "80af7acc8cf60500")
 	// "time_point_sec"
+	AssertPackAbiValue(t, "time_point_sec", `"2023-03-10T14:44:30"`, "4e420b64")
 	// "block_timestamp_type"
-
 	// "name"
 	AssertPackAbiValue(t, "name", `"hello"`, "00000000001aa36a")
 

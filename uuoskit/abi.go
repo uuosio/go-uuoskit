@@ -316,9 +316,9 @@ func (t *ABI) ParseAbiStringValue(enc *Encoder, typ string, v string) error {
 		if err != nil {
 			return newError(err)
 		}
-		n := tt.UnixNano()
+		n := tt.UnixMicro()
 		enc.PackInt64(n)
-	case "time_point_sec", "block_timestamp_type":
+	case "time_point_sec":
 		v, ok := StripString(v)
 		if !ok {
 			return newErrorf("invalid time_point_sec value: %s", v)
@@ -329,6 +329,8 @@ func (t *ABI) ParseAbiStringValue(enc *Encoder, typ string, v string) error {
 		}
 		n := tt.Unix()
 		enc.PackUint32(uint32(n))
+	case "block_timestamp_type":
+		return newErrorf("packing block_timestamp_type type does not supported")
 	case "name":
 		v, ok := StripString(v)
 		if !ok {
@@ -593,7 +595,7 @@ func (t *ABI) unpackAbiStructField(dec *Decoder, typ string) (interface{}, error
 			return nil, newError(err)
 		}
 		//convert seconds to iso8601
-		return time.Unix(0, int64(v)).Format("2006-01-02T15:04:05"), nil
+		return time.UnixMicro(int64(v)).Format("2006-01-02T15:04:05"), nil
 	case "time_point_sec", "block_timestamp_type":
 		v, err := dec.ReadUint32()
 		if err != nil {
