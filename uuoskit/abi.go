@@ -581,13 +581,15 @@ func (t *ABI) unpackAbiStructField(dec *Decoder, typ string) (interface{}, error
 		}
 		//convert seconds to iso8601
 		return time.UnixMicro(int64(v)).Format("2006-01-02T15:04:05"), nil
-	case "time_point_sec", "block_timestamp_type":
+	case "time_point_sec":
 		v, err := dec.ReadUint32()
 		if err != nil {
 			return nil, newError(err)
 		}
 		//convert seconds to iso8601
 		return time.Unix(int64(v), 0).Format("2006-01-02T15:04:05"), nil
+	case "block_timestamp_type":
+		return nil, newErrorf("block_timestamp_type is not supported in unpacking")
 	case "name":
 		v, err := dec.ReadUint64()
 		if err != nil {
