@@ -40,20 +40,12 @@ func (t *ABISerializer) IsAbiCached(contractName string) bool {
 	return ok
 }
 
-func (t *ABISerializer) PackActionArgs(contractName, actionName string, args []byte) ([]byte, error) {
+func (t *ABISerializer) PackActionArgs(contractName, actionName string, args string) ([]byte, error) {
 	if abi, ok := t.contractAbiMap[contractName]; ok {
 		actionTypeName := abi.GetActionStructType(actionName)
 		return abi.PackAbiType(actionTypeName, args)
 	} else {
 		return nil, newErrorf("abi struct not found in %s::%s", contractName, actionName)
-	}
-}
-
-func (t *ABISerializer) PackAbiStructByName(contractName, structName string, args string) ([]byte, error) {
-	if abi, ok := t.contractAbiMap[contractName]; ok {
-		return abi.PackAbiStructByName(structName, args)
-	} else {
-		return nil, newErrorf("abi struct not found in %s::%s", contractName, structName)
 	}
 }
 
@@ -80,7 +72,7 @@ func (t *ABISerializer) UnpackActionArgs(contractName string, actionName string,
 	return bs, nil
 }
 
-func (t *ABISerializer) PackAbiType(contractName, abiType string, args []byte) ([]byte, error) {
+func (t *ABISerializer) PackAbiType(contractName, abiType string, args string) ([]byte, error) {
 	abi, ok := t.contractAbiMap[contractName]
 	if !ok {
 		return nil, newErrorf("contract not found %s", contractName)

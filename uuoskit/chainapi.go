@@ -156,7 +156,7 @@ func (api *ChainApi) getRequiredKeys(actions []Action) ([]string, error) {
 }
 
 func (api *ChainApi) PushActionWithArgs(account, action, args string, actor, permission string) (JsonValue, error) {
-	result, err := api.ABISerializer.PackActionArgs(account, action, []byte(args))
+	result, err := api.ABISerializer.PackActionArgs(account, action, args)
 	if err != nil {
 		return JsonValue{}, err
 	}

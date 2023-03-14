@@ -90,7 +90,7 @@ func TestAbi(t *testing.T) {
 	serializer.SetContractABI("hello", strAbi)
 
 	args := `{"from": "hello", "to": "alice", "quantity": "1.0000 EOS", "memo": "transfer from alice"}`
-	buf, err := serializer.PackActionArgs("hello", "transfer", []byte(args))
+	buf, err := serializer.PackActionArgs("hello", "transfer", args)
 	if err != nil {
 		panic(err)
 	}
@@ -103,7 +103,7 @@ func TestAbi(t *testing.T) {
 		t.Log("+++++++UnpackActionArgs:", string(s))
 	}
 
-	buf, err = serializer.PackAbiStructByName("hello", "transfer", args)
+	buf, err = serializer.PackAbiType("hello", "transfer", args)
 	if err != nil {
 		panic(err)
 	}
@@ -139,7 +139,7 @@ func TestAbi(t *testing.T) {
 	serializer.SetContractABI("test", []byte(abi))
 	{
 		args := `{"name": [1, 2, 3]}`
-		buf, err := serializer.PackActionArgs("test", "sayhello", []byte(args))
+		buf, err := serializer.PackActionArgs("test", "sayhello", args)
 		if err != nil {
 			panic(err)
 		}
@@ -196,7 +196,7 @@ func TestAbi(t *testing.T) {
 		args := `
             {"v": ["uint64", 10]}
         `
-		buf, err := serializer.PackActionArgs("test", "test", []byte(args))
+		buf, err := serializer.PackActionArgs("test", "test", args)
 		if err != nil {
 			panic(err)
 		}
@@ -227,7 +227,7 @@ func TestAbi(t *testing.T) {
 			}]
 		}
 		`
-		buf, err := serializer.PackActionArgs("atomicassets", "setassetdata", []byte(args))
+		buf, err := serializer.PackActionArgs("atomicassets", "setassetdata", args)
 		if err != nil {
 			panic(err)
 		}
@@ -275,7 +275,7 @@ func TestPackAbiArray(t *testing.T) {
 	serializer.SetContractABI("test", []byte(abi))
 	{
 		args := `{"name": [1, 2, 3]}`
-		buf, err := serializer.PackActionArgs("test", "sayhello", []byte(args))
+		buf, err := serializer.PackActionArgs("test", "sayhello", args)
 		if err != nil {
 			panic(err)
 		}
@@ -562,7 +562,7 @@ func TestBinaryExtension(t *testing.T) {
 	serializer := NewABISerializer()
 	serializer.SetContractABI("hello", []byte(abi))
 	args := `{"a": "hello", "b": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "c": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`
-	buf, err := serializer.PackActionArgs("hello", "testext", []byte(args))
+	buf, err := serializer.PackActionArgs("hello", "testext", args)
 	if err != nil {
 		panic(err)
 	}
@@ -573,7 +573,7 @@ func TestBinaryExtension(t *testing.T) {
 
 	{
 		args := `{"a": "hello", "b": null}`
-		buf, err := serializer.PackActionArgs("hello", "testext", []byte(args))
+		buf, err := serializer.PackActionArgs("hello", "testext", args)
 		if err != nil {
 			panic(err)
 		}

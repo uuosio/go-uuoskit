@@ -85,7 +85,7 @@ func AssertPackAbiValueError(t *testing.T, typ string, value string, expectedErr
 	s := NewABISerializer()
 	s.SetContractABI("test", []byte(_abi))
 
-	_, err := s.PackAbiStructByName("test", "test", fmt.Sprintf(`{"t": %s}`, value))
+	_, err := s.PackAbiType("test", "test", fmt.Sprintf(`{"t": %s}`, value))
 	assert.NotEqual(err, nil, "expected error")
 	// t.Log(expectedErr, err)
 	assert.Equal(expectedErr.Error(), err.Error(), "bad error")
@@ -96,7 +96,7 @@ func AssertPackAbiValue(t *testing.T, typ string, value string, expected string)
 	s := NewABISerializer()
 	s.SetContractABI("test", []byte(_abi))
 
-	r, err := s.PackAbiStructByName("test", "test", fmt.Sprintf(`{"t": %s}`, value))
+	r, err := s.PackAbiType("test", "test", fmt.Sprintf(`{"t": %s}`, value))
 	if err != nil {
 		panic(err)
 	}
@@ -158,9 +158,9 @@ func TestPackAbiType(t *testing.T) {
 	AssertPackAbiValue(t, "float128", `"0x70680300000000000000000000000000"`, "70680300000000000000000000000000")
 
 	// "time_point"
-	AssertPackAbiValue(t, "time_point", `"2023-03-10T14:44:30"`, "80af7acc8cf60500")
+	AssertPackAbiValue(t, "time_point", `"2023-03-10T14:44:30.000"`, "80af7acc8cf60500")
 	// "time_point_sec"
-	AssertPackAbiValue(t, "time_point_sec", `"2023-03-10T14:44:30"`, "4e420b64")
+	AssertPackAbiValue(t, "time_point_sec", `"2023-03-10T14:44:30.000"`, "4e420b64")
 	// "block_timestamp_type"
 	// "name"
 	AssertPackAbiValue(t, "name", `"hello"`, "00000000001aa36a")
@@ -199,13 +199,13 @@ func TestBuyRam(t *testing.T) {
 	s.SetContractABI("eosio", abi)
 
 	args := `{"payer": "hello", "receiver": "mixincrossss", "bytes": 10485760}`
-	r, err := s.PackAbiStructByName("eosio", "buyrambytes", args)
+	r, err := s.PackAbiType("eosio", "buyrambytes", args)
 	if err != nil {
 		t.Error(err)
 	}
 	t.Logf("%x", r)
 
-	r, err = s.PackActionArgs("eosio", "buyrambytes", []byte(args))
+	r, err = s.PackActionArgs("eosio", "buyrambytes", args)
 	if err != nil {
 		t.Error(err)
 	}
@@ -717,7 +717,7 @@ func TestAbiTypeDefine(t *testing.T) {
 		t.Error(err)
 	}
 	args := `{"account":"eosio", "vmtype":0, "vmversion":0, "code": "1122"}`
-	r, err := ser.PackActionArgs("eosio", "setcode", []byte(args))
+	r, err := ser.PackActionArgs("eosio", "setcode", args)
 	if err != nil {
 		t.Error(err)
 	}
@@ -789,7 +789,7 @@ func TestVariant(t *testing.T) {
 	}
 	`
 	log.Printf("+++++++++=hello\n")
-	r, err := ser.PackActionArgs("test", "test", []byte(args))
+	r, err := ser.PackActionArgs("test", "test", args)
 	if err != nil {
 		t.Error(err)
 	}

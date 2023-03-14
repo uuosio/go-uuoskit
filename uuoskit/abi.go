@@ -88,11 +88,11 @@ type ABI struct {
 	Variants         []VariantDef   `json:"variants"`
 }
 
-func (t *ABI) PackAbiType(abiType string, args []byte) ([]byte, error) {
+func (t *ABI) PackAbiType(abiType string, args string) ([]byte, error) {
 	enc := NewEncoder(1024)
 
 	m := make(map[string]JsonValue)
-	err := json.Unmarshal(args, &m)
+	err := json.Unmarshal([]byte(args), &m)
 	if err != nil {
 		return nil, newError(err)
 	}
@@ -117,21 +117,6 @@ func (t *ABI) UnpackAbiType(abiName string, packedValue []byte) ([]byte, error) 
 		return nil, newError(err)
 	}
 	return bs, nil
-}
-
-func (t *ABI) PackAbiStructByName(structName string, args string) ([]byte, error) {
-	enc := NewEncoder(1024)
-	m := make(map[string]JsonValue)
-	err := json.Unmarshal([]byte(args), &m)
-	if err != nil {
-		return nil, newError(err)
-	}
-
-	err = t.PackAbiStruct(enc, structName, m)
-	if err != nil {
-		return nil, newError(err)
-	}
-	return enc.Bytes(), nil
 }
 
 func (t *ABI) ParseAbiStringValue(enc *Encoder, typ string, v string) error {

@@ -274,7 +274,7 @@ func transaction_add_action_(chainIndex C.int64_t, idx C.int64_t, account *C.cha
 	var __data []byte
 	__data, err = hex.DecodeString(_data)
 	if err != nil {
-		__data, err = ctx.ABISerializer.PackActionArgs(_account, _name, []byte(_data))
+		__data, err = ctx.ABISerializer.PackActionArgs(_account, _name, _data)
 		if err != nil {
 			return renderError(err)
 		}
@@ -433,7 +433,7 @@ func abiserializer_pack_action_args_(chainIndex C.int64_t, contractName *C.char,
 
 	_contractName := C.GoString(contractName)
 	_actionName := C.GoString(actionName)
-	_args := C.GoBytes(unsafe.Pointer(args), args_len)
+	_args := C.GoStringN(unsafe.Pointer(args), args_len)
 	result, err := ctx.ABISerializer.PackActionArgs(_contractName, _actionName, _args)
 	if err != nil {
 		return renderError(err)
@@ -526,7 +526,8 @@ func n2s_(n C.uint64_t) *C.char {
 	return CString(uuoskit.N2S(uint64(n)))
 }
 
-//symbol to uint64
+// symbol to uint64
+//
 //export sym2n_
 func sym2n_(str_symbol *C.char, precision C.uint64_t) C.uint64_t {
 	v := uuoskit.NewSymbol(C.GoString(str_symbol), int(uint64(precision))).Value
@@ -644,7 +645,7 @@ func CreateKey(oldPubKeyFormat bool) map[string]string {
 	return ret
 }
 
-//https://github.com/tendermint/tendermint/blob/de2cffe7a44e99bf81a62c542d50ccbf28dc852a/crypto/secp256k1/secp256k1.go#L73
+// https://github.com/tendermint/tendermint/blob/de2cffe7a44e99bf81a62c542d50ccbf28dc852a/crypto/secp256k1/secp256k1.go#L73
 // genPrivKey generates a new secp256k1 private key using the provided reader.
 func genPrivKey(rand io.Reader) []byte {
 	var privKeyBytes [32]byte
