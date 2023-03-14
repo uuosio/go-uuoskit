@@ -433,7 +433,7 @@ func abiserializer_pack_action_args_(chainIndex C.int64_t, contractName *C.char,
 
 	_contractName := C.GoString(contractName)
 	_actionName := C.GoString(actionName)
-	_args := C.GoStringN(unsafe.Pointer(args), args_len)
+	_args := C.GoStringN(args, args_len)
 	result, err := ctx.ABISerializer.PackActionArgs(_contractName, _actionName, _args)
 	if err != nil {
 		return renderError(err)
@@ -471,7 +471,7 @@ func abiserializer_pack_abi_type_(chainIndex C.int64_t, contractName *C.char, ac
 
 	_contractName := C.GoString(contractName)
 	_actionName := C.GoString(actionName)
-	_args := C.GoBytes(unsafe.Pointer(args), args_len)
+	_args := C.GoStringN(args, args_len)
 	result, err := ctx.ABISerializer.PackAbiType(_contractName, _actionName, _args)
 	if err != nil {
 		return renderError(err)
